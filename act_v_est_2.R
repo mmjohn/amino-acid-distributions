@@ -4,7 +4,7 @@ library(cowplot)
 library(broom)
 
 # read in data
-alignment <-read_csv("results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
+alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
 
 # tidy data used for null
 alignment %>% 
@@ -71,47 +71,19 @@ observed_aa %>% nest(-site) %>%
   select(-data, -fit) -> observed_fits
 
 # data frame with slope from linear fit to log transformed data - slope = gamma, intercept = 0
-head(observed_fits)
+#head(observed_fits)
 
 # visualize the distribution (at a given site) with linear fits
 # NOTE: sites that are highly conserved for a single aa still look exponential in log scale (see sites 3 and 9 as example) 3, 6, 33
-library(forcats)
-observed_aa %>%
-  filter(site==3) %>%
-  ggplot() + 
-  geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-  geom_abline(intercept = 0, slope = -1.9044913) + # NOTE: look up slope from ordered_fits dataframe
-  ggtitle("site = 3") +
-  xlab("ordered aa") +
-  ylab("ln(count)") #-> p1
-
-observed_aa %>%
-  filter(site==113) %>%
-  ggplot() + 
-  geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-  geom_abline(intercept = 0, slope = -0.7663804) + # NOTE: look up slope from ordered_fits dataframe
-  ggtitle("site = 113") +
-  xlab("ordered aa") +
-  ylab("ln(count)") #-> p2
-
-observed_aa %>%
-  filter(site==33) %>%
-  ggplot() + 
-  geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-  geom_abline(intercept = 0, slope = -0.3507396) + # NOTE: look up slope from ordered_fits dataframe
-  ggtitle("site = 33") +
-  xlab("ordered aa") +
-  ylab("ln(count)") #-> p3
-
-observed_aa %>%
-  filter(site==6) %>%
-  ggplot() + 
-  geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-  geom_abline(intercept = 0, slope = -0.3053751) + # NOTE: look up slope from ordered_fits dataframe
-  ggtitle("site = 6") +
-  xlab("ordered aa") +
-  ylab("ln(count)") #-> p4
-
+# library(forcats)
+# observed_aa %>%
+#   filter(site==3) %>%
+#   ggplot() + 
+#   geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
+#   geom_abline(intercept = 0, slope = -1.9044913) + # NOTE: look up slope from ordered_fits dataframe
+#   ggtitle("site = 3") +
+#   xlab("ordered aa") +
+#   ylab("ln(count)") #-> p1
 # plot_grid(p1, p2, p3, p4, ncol = 2) -> p
 # title2 <- ggdraw() + 
 #   draw_label("Linear fit to log-transformed distribution",
@@ -146,35 +118,35 @@ ordered_count %>%
                      labels = c("actual", "estimated")) +
   ggtitle("site = 3") #-> q1
 
-ordered_count %>%
-  filter(site == 113) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = count, color = "steelblue")) +
-  geom_point(aes(y = est_count, color = "violetred")) +
-  scale_color_manual(name = "distribution",  
-                     values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-                     labels = c("actual", "estimated")) +
-  ggtitle("site = 113") #-> q2
-
-ordered_count %>%
-  filter(site == 33) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = count, color = "steelblue")) +
-  geom_point(aes(y = est_count, color = "violetred")) +
-  scale_color_manual(name = "distribution",  
-                     values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-                     labels = c("actual", "estimated")) +
-  ggtitle("site = 33") #-> q3
-
-ordered_count %>%
-  filter(site ==6) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = count, color = "steelblue")) +
-  geom_point(aes(y = est_count, color = "violetred")) +
-  scale_color_manual(name = "distribution",  
-                     values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-                     labels = c("actual", "estimated")) +
-  ggtitle("site = 6") #-> q4
+# ordered_count %>%
+#   filter(site == 113) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = count, color = "steelblue")) +
+#   geom_point(aes(y = est_count, color = "violetred")) +
+#   scale_color_manual(name = "distribution",  
+#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
+#                      labels = c("actual", "estimated")) +
+#   ggtitle("site = 113") #-> q2
+# 
+# ordered_count %>%
+#   filter(site == 33) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = count, color = "steelblue")) +
+#   geom_point(aes(y = est_count, color = "violetred")) +
+#   scale_color_manual(name = "distribution",  
+#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
+#                      labels = c("actual", "estimated")) +
+#   ggtitle("site = 33") #-> q3
+# 
+# ordered_count %>%
+#   filter(site ==6) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = count, color = "steelblue")) +
+#   geom_point(aes(y = est_count, color = "violetred")) +
+#   scale_color_manual(name = "distribution",  
+#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
+#                      labels = c("actual", "estimated")) +
+#   ggtitle("site = 6") #-> q4
 
 # q <- plot_grid(q1 + theme(legend.position = "none"),
 #                q2 + theme(legend.position = "none"), 
@@ -190,6 +162,7 @@ ordered_count %>%
 
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
+# SOMETHING WRONG HERE - SEE _diff.R
 # use raw count
 ordered_count %>% nest(-site) %>%
   mutate(chisq = map(data, ~ sum((.$count - .$est_count)/.$est_count)),

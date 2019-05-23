@@ -3,12 +3,6 @@ library(stringr)
 library(cowplot)
 library(broom)
 
-
-# mean chi square
-# does one dist systematically fit better
-# aic or lrt to see if increase in parameter is worth it
-# distribution of chi square
-
 # read in data
 alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
 
@@ -71,8 +65,8 @@ observed_aa %>%
 
 # fit to a linear function, using map and BROOM 
 # SET INTERCEPT TO 0
-observed_aa %>% nest(-site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+ordered_count %>% nest(-site) %>%
+  mutate(fit = map(data, ~ lm(count ~ exp(-k), data = .)),
          #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
          slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
   select(-data, -fit) -> observed_fits
@@ -88,29 +82,10 @@ ordered_count %>%
 ordered_count %>%
   mutate(ln_count = log(rel_count)) -> ordered_count
 
-# library(forcats)
-# ordered_count %>%
-#   filter(site==77) %>%
-#   ggplot() +
-#   #geom_bar(aes(x = fct_inorder(aa), y = count), stat = 'identity') +
-#   geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-#   geom_abline(intercept = 0, slope = -0.2046281) + # NOTE: look up slope from ordered_fits dataframe
-#   xlab("ordered aa") +
-#   ylab("ln(count)") +
-#   theme(text = element_text(size = 40),
-#         axis.text = element_text(size = 40))
-# 
-# ggsave("step3.jpg")
-
-# estimate the distribution
-# only for observed
-# observed_aa %>%
-#   left_join(observed_fits, by = "site") %>%
-#   mutate(est_dist = exp(k*slope)) -> observed_aa
-
 ordered_count %>% 
   left_join(observed_fits, by = "site") %>%
   mutate(est_dist = slope*exp(k*slope)) -> ordered_count
+
 
 
 # rescale to compare w raw count
@@ -119,48 +94,12 @@ ordered_count %>%
   mutate(est_rel = est_dist/sum(est_dist)) %>%
   mutate(est_count = sum(count)*est_rel) -> ordered_count
 
-#ordered_count %>% filter(site == 78) -> plot_df 
-#plot_df$aa <- factor(plot_df$aa, levels = plot_df$aa[order(plot_df$k)])
-
-# visual comparison
-# ordered_count %>%
-#   filter(site == 10) %>%
-#   ggplot(aes(x = k)) +
-#   geom_bar(aes(y = count), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   geom_line(aes(y = est_count, color = "violetred"), size = 1) 
-#   scale_color_manual(name = "distribution",
-#                      values = c("grey" = "grey", "violetred" = "violetred"),
-#                      labels = c("actual", "estimated"))  +
-#   labs(x = "amino acids ranked, k", y = "count") +
-#   theme(legend.position = "none",
-#         text = element_text(size = 40),
-#         axis.text = element_text(size = 40)) #-> q1
-#ggsave("plot2.jpg")
-
-# ordered_count %>%
-#   filter(site == 136) %>% 
-#   ggplot(aes(x = k)) +
-#   geom_bar(aes(y = count, fill = "actual"), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count, color = "Estimated")) +
-#   geom_line(aes(y = est_count, color = "Estimated")) +
-#   scale_color_manual(" ", values = c("actual" = "grey", "Estimated" = "violetred"))  +
-#   scale_fill_manual(" ", values = "grey")  +
-#   theme(legend.key = element_blank()) +
-#   labs(x = "Amino acids ranked by frequency, k", y = "Count") +
-#   theme(text = element_text(size = 20),
-#         axis.text = element_text(size = 20))
-
-
-# ordered_count %>%
-#   filter(site == 77) %>% 
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = est_count)) +
-#   geom_line(aes(y = est_count)) +
-#   labs(x = "amino acids ranked, k", y = "count") +
-#   theme(text = element_text(size = 40),
-#         axis.text = element_text(size = 40))
-# ggsave("intro.jpg")
+ordered_count %>%
+  filter(site == 78) %>%
+  ggplot(aes(x = k)) +
+  geom_bar(aes(y = count), fill = "grey", stat='identity') +
+  geom_point(aes(y = est_dist, color = "violetred")) +
+  geom_line(aes(y = est_dist, color = "violetred"), size = 1)
 
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
@@ -181,41 +120,7 @@ chisq_results %>%
 chisq_results$result[chisq_results$p_value < 0.05] <- "fail"
 
 chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
-chisq_results$chisq <- as.numeric(chisq_results$chisq)
 
-# ordered_count %>% 
-#   filter(count != 0) %>% 
-#   filter(count != 500) %>% 
-#   group_by(site) %>%
-#   do(tidy(chisq.test(.$count, p = .$est_count/sum(.$est_count)))) %>%
-#   ungroup() %>%
-#   mutate(p.adjusted = p.adjust(p.value, method= "fdr")) -> observed_chi
-# 
-# observed_chi %>%
-#   mutate(result = "pass") -> observed_chi
-# observed_chi$result[observed_chi$p.value < 0.05] <- "fail"
-# observed_chi %>% filter(result == "fail") %>% nrow()/nrow(observed_chi)
-
-#test manually for a few sites
-#df1 <- filter(ordered_count, site == 1)
-#chisq1 <- sum((df1$count - df1$est_count)^2/df1$est_count)
-#pchisq(chisq1, 18, lower.tail = FALSE)
-
-#ks.test(df1$count, df1$est_count, exact = FALSE)
-
-ordered_count %>%
-  filter(site == 1) %>%
-  ggplot(aes(x = k)) +
-    geom_bar(aes(y = count, fill = "actual"), fill = "grey", stat='identity') +
-    geom_point(aes(y = est_count, color = "Estimated")) +
-    geom_line(aes(y = est_count, color = "Estimated")) +
-    scale_color_manual(" ", values = c("actual" = "grey", "Estimated" = "violetred"))  +
-    scale_fill_manual(" ", values = "grey")  +
-    theme(legend.position = "none") +
-    labs(x = "k", y = "Count") +
-    theme(text = element_text(size = 20),
-          axis.text = element_text(size = 20)) +
-  ggtitle("site = 1") 
 
 
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
@@ -242,21 +147,6 @@ gam_v_effaa %>%
   left_join(chisq_results) %>% 
   select(site, slope, eff_aa, result) -> gam_v_effaa
 
-# observed_fits %>%
-#   left_join(eff_aa_all) %>% 
-#   select(site, slope, eff_aa) %>%
-#   left_join(observed_chi) %>% 
-#   select(site, slope, eff_aa, result) -> obs_gam_v_effaa
-
-# theoretical prediction
-# neff <- function(lambda) {
-#   pi <- exp(-lambda*(0:19))
-#   C <- sum(pi)
-#   pi <- pi/C
-#   exp(-sum(pi*log(pi)))
-# }
-# 
-# df_theory <- data.frame(lambda = (0:100)/10, ne = vapply((0:100)/10, neff, numeric(1)))
 
 neff2 <- function(lambda_inv) {
   lambda <- 1/lambda_inv
@@ -265,6 +155,7 @@ neff2 <- function(lambda_inv) {
   pi <- pi/C
   exp(-sum(pi*log(pi)))
 }
+#neff2(1/3)
 
 df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
 
@@ -277,5 +168,4 @@ ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) +
   labs(x = "effective number of amino acids", y = "1/slope") +
   theme(legend.position = "right",
         text = element_text(size = 20),
-        axis.text = element_text(size = 20))  #-> plot1
-
+        axis.text = element_text(size = 20)) 
