@@ -1,3 +1,7 @@
+# fit quadratic model to normalized, log-transformed data
+# fitting 3 parameter: slope, slope^2, intercept
+# use non-linear model, fit to all aa (add small value to zero counts)
+
 library(tidyverse)
 library(stringr)
 library(cowplot)
@@ -77,13 +81,12 @@ observed_aa %>%
 #ak+bk^2
 #a(k-k0)^2; k0<1, a<= 0
 observed_aa %>% nest(-site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k + I(k^2), data = .)),
-         slope = map_dbl(fit, ~ (.)$coefficients[1]),
-         sqr_slp = map_dbl(fit, ~ (.)$coefficients[2])) %>% 
+  mutate(fit = map(data, ~ lm(ln_count ~ poly(k,2), data = .)),
+         intercept = map_dbl(fit, ~ (.)$coefficients[1]),
+         slope = map_dbl(fit, ~ (.)$coefficients[2]),
+         sqr_slp = map_dbl(fit, ~ (.)$coefficients[3])) %>% 
   select(-data, -fit) -> fits_2param
 
-observed_aa %>% filter(site == 92) %>%
-  ggplot(aes(x=k, y=ln_count)) + geom_point()
 
 # check fit at one site to see if it appears ok - it does here
 # x <- data.frame(k = seq(1,20))
@@ -102,7 +105,7 @@ ordered_count %>%
 
 ordered_count %>% 
   left_join(fits_2param, by = "site") %>% 
-  mutate(est_dist = slope*exp(k*slope + k*k*sqr_slp)) -> ordered_count
+  mutate(est_dist = slope*exp(k*slope + k*k*sqr_slp + intercept)) -> ordered_count
 
 # rescale to compare w raw count
 ordered_count %>%
@@ -121,27 +124,18 @@ ordered_count %>%
                      values = c("grey" = "grey", "violetred" = "violetred"),
                      labels = c("actual", "estimated"))  +
   labs(x = "amino acids ranked, k", y = "count") +
-  theme(legend.position = "none") + scale_y_log10()
+  theme(legend.position = "none") 
 
-ordered_count %>%
-  filter(site == 135) %>%
-  ggplot(aes(x = k, y = ln_count)) + geom_point()
 
 # add small constant to est count for sites that have estimated zero counts
 # ordered_count %>%
 #   mutate(est_count_mod = est_count+0.00001) -> ordered_count
 
-# ordered_count %>%
-#   group_by(site) %>%
-#   filter(count != 0) %>%
-#   mutate(num = n()) %>%
-#   filter(num != 1) -> ordered_count_variable
-
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
 # use raw count
 ordered_count %>% nest(-site) %>%
   mutate(chisq = map(data, ~ sum(((.$count_mod - .$est_count)^2)/.$est_count)),
-         p_value = map_dbl(chisq, ~ pchisq(., 17, lower.tail=FALSE))) %>% 
+         p_value = map_dbl(chisq, ~ pchisq(., 16, lower.tail=FALSE))) %>% 
   select(-data) %>%
   mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results
 
@@ -161,23 +155,24 @@ chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 chisq_results$chisq <- as.numeric(chisq_results$chisq)
 ggplot(chisq_results, aes(chisq)) + geom_density() 
 
-chisq_results %>% mutate(method = "quadratic") -> chisq_results
-chisq_results_reg %>% mutate(method = "linear") -> chisq_results_reg
-full_join(chisq_results, chisq_results_reg) -> compare_chi
-
-ggplot(compare_chi, aes(chisq, fill = method)) + geom_density(alpha = 0.5) + xlim(0,600)
-
-full_join(compare_chi,eff_aa_all) -> compare_chi_eff
-compare_chi_eff %>% filter(result != "NA") -> compare_chi_eff
-
-ggplot(compare_chi_eff, aes(x=result, y=eff_aa, fill=method)) + geom_violin(alpha=0.5) #+ coord_flip()
-
-chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
-chisq_results_reg %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_reg)
+# chisq_results %>% mutate(method = "quadratic") -> chisq_results
+# chisq_results_reg %>% mutate(method = "linear") -> chisq_results_reg
+# full_join(chisq_results, chisq_results_reg) -> compare_chi
+# 
+# ggplot(compare_chi, aes(chisq, fill = method)) + geom_density(alpha = 0.5) + xlim(0,600)
+# 
+# full_join(compare_chi,eff_aa_all) -> compare_chi_eff
+# compare_chi_eff %>% filter(result != "NA") -> compare_chi_eff
+# 
+# ggplot(compare_chi_eff, aes(x=result, y=eff_aa, fill=method)) + geom_violin(alpha=0.5) #+ coord_flip()
+# 
+# chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
+# chisq_results_reg %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_reg)
 
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
+# eff aa for actual distribution
 observed_aa %>%
   group_by(site) %>%
   mutate(frequency = (count)/sum(count)) -> site_aa_freq
@@ -188,6 +183,23 @@ site_aa_freq %>%
   summarize(entropy = -sum(flnf),
             eff_aa = exp(entropy),
             n = length(unique(aa))) -> eff_aa_all
+
+# eff aa for estimated distribution
+ordered_count %>% 
+  group_by(site) %>%
+  mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2
+site_aa_freq_2 %>% 
+  mutate(flnf = freq*log(freq)) %>%
+  group_by(site) %>%
+  summarize(entr = -sum(flnf),
+            eff_aa_est = exp(entr)) -> eff_aa_all_est
+
+left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
+
+ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
+  geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) + 
+  labs(title = "3 parameter fit", x = "eff_aa actual", y = "eff_aa fit")
+
 
 
 #------- RELATIONSHIP BETWEEN GAMMA & EFF AA -------
