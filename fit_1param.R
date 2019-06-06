@@ -1,3 +1,6 @@
+# fit linear model to normalized, log-transformed data
+# set intercept to 0, only fitting 1 parameter (slope)
+
 library(tidyverse)
 library(stringr)
 library(cowplot)
@@ -100,18 +103,11 @@ ordered_count %>%
 #   theme(text = element_text(size = 40),
 #         axis.text = element_text(size = 40))
 # 
-# ggsave("step3.jpg")
 
-# estimate the distribution
-# only for observed
-# observed_aa %>%
-#   left_join(observed_fits, by = "site") %>%
-#   mutate(est_dist = exp(k*slope)) -> observed_aa
 
 ordered_count %>% 
   left_join(observed_fits, by = "site") %>%
   mutate(est_dist = slope*exp(k*slope)) -> ordered_count
-
 
 # rescale to compare w raw count
 ordered_count %>%
@@ -135,32 +131,8 @@ ordered_count %>%
 #   labs(x = "amino acids ranked, k", y = "count") +
 #   theme(legend.position = "none",
 #         text = element_text(size = 40),
-#         axis.text = element_text(size = 40)) #-> q1
-#ggsave("plot2.jpg")
+#         axis.text = element_text(size = 40)) 
 
-# ordered_count %>%
-#   filter(site == 136) %>% 
-#   ggplot(aes(x = k)) +
-#   geom_bar(aes(y = count, fill = "actual"), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count, color = "Estimated")) +
-#   geom_line(aes(y = est_count, color = "Estimated")) +
-#   scale_color_manual(" ", values = c("actual" = "grey", "Estimated" = "violetred"))  +
-#   scale_fill_manual(" ", values = "grey")  +
-#   theme(legend.key = element_blank()) +
-#   labs(x = "Amino acids ranked by frequency, k", y = "Count") +
-#   theme(text = element_text(size = 20),
-#         axis.text = element_text(size = 20))
-
-
-# ordered_count %>%
-#   filter(site == 77) %>% 
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = est_count)) +
-#   geom_line(aes(y = est_count)) +
-#   labs(x = "amino acids ranked, k", y = "count") +
-#   theme(text = element_text(size = 40),
-#         axis.text = element_text(size = 40))
-# ggsave("intro.jpg")
 
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
@@ -183,25 +155,11 @@ chisq_results$result[chisq_results$p_value < 0.05] <- "fail"
 chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 chisq_results$chisq <- as.numeric(chisq_results$chisq)
 
-# ordered_count %>% 
-#   filter(count != 0) %>% 
-#   filter(count != 500) %>% 
-#   group_by(site) %>%
-#   do(tidy(chisq.test(.$count, p = .$est_count/sum(.$est_count)))) %>%
-#   ungroup() %>%
-#   mutate(p.adjusted = p.adjust(p.value, method= "fdr")) -> observed_chi
-# 
-# observed_chi %>%
-#   mutate(result = "pass") -> observed_chi
-# observed_chi$result[observed_chi$p.value < 0.05] <- "fail"
-# observed_chi %>% filter(result == "fail") %>% nrow()/nrow(observed_chi)
-
 #test manually for a few sites
 #df1 <- filter(ordered_count, site == 1)
 #chisq1 <- sum((df1$count - df1$est_count)^2/df1$est_count)
 #pchisq(chisq1, 18, lower.tail = FALSE)
 
-#ks.test(df1$count, df1$est_count, exact = FALSE)
 
 ordered_count %>%
   filter(site == 1) %>%
@@ -221,6 +179,7 @@ ordered_count %>%
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
+# eff aa for actual distribution
 observed_aa %>%
   group_by(site) %>%
   mutate(frequency = (count)/sum(count)) -> site_aa_freq
@@ -231,6 +190,22 @@ site_aa_freq %>%
   summarize(entropy = -sum(flnf),
             eff_aa = exp(entropy),
             n = length(unique(aa))) -> eff_aa_all
+
+# eff aa for estimated distribution
+ordered_count %>% 
+  group_by(site) %>%
+  mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2
+site_aa_freq_2 %>% 
+  mutate(flnf = freq*log(freq)) %>%
+  group_by(site) %>%
+  summarize(entr = -sum(flnf),
+            eff_aa_est = exp(entr)) -> eff_aa_all_est
+
+left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
+
+ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
+  geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) + 
+  labs(title = "1 parameter fit", x = "eff_aa actual", y = "eff_aa fit")
 
 
 #------- RELATIONSHIP BETWEEN GAMMA & EFF AA -------
