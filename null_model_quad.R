@@ -1,4 +1,5 @@
-# code to test the null model
+# code to test the null model with a quadratic fit. 
+# extending to fit all 20 aa, even if they have a zero count observed.
 # 
 library(tidyverse)
 library(stringr)
@@ -46,9 +47,11 @@ ordered_count %>%
   group_by(site) %>%
   mutate(k = as.numeric(1:20)) -> ordered_count
 
-# remove aa with zero values
+# add a small constant to include aa with zero values
 ordered_count %>%
-  filter(count > 0) -> observed_aa
+  mutate(count = count + 0.000001) -> observed_aa
+ordered_count %>%
+  mutate(count_mod = count + 0.000001) -> ordered_count
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
 observed_aa %>%
@@ -59,38 +62,52 @@ observed_aa %>%
 observed_aa %>%
   mutate(ln_count = log(rel_count)) -> observed_aa 
 
-# fit to a linear function, using map and BROOM 
-# SET INTERCEPT TO 0
+# fit with two parameters 
 observed_aa %>% nest(-site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
-  select(-data, -fit) -> observed_fits
+  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k + I(k^2), data = .)),
+         slope = map_dbl(fit, ~ (.)$coefficients[1]),
+         sqr_slp = map_dbl(fit, ~ (.)$coefficients[2])) %>% 
+  select(-data, -fit) -> fits_2param
+
+# visualize the distribution (at a given site) with linear fits
+ordered_count %>%
+  group_by(site) %>%
+  mutate(rel_count = count_mod/max(count_mod)) -> ordered_count
+ordered_count %>%
+  mutate(ln_count = log(rel_count)) -> ordered_count
 
 ordered_count %>% 
-  left_join(observed_fits, by = "site") %>%
-  mutate(est_dist = exp(k*slope)) -> ordered_count
+  left_join(fits_2param, by = "site") %>% 
+  mutate(est_dist = slope*exp(k*slope + k*k*sqr_slp)) -> ordered_count
 
 # rescale to compare w raw count
 ordered_count %>%
   group_by(site) %>%
   mutate(est_rel = est_dist/sum(est_dist)) %>%
-  mutate(est_count = sum(count)*est_rel) -> ordered_count
+  mutate(est_count = sum(count_mod)*est_rel) -> ordered_count
 
 # visual comparison
+ordered_count %>%
+  filter(site == 1) %>%
+  ggplot(aes(x = k)) +
+  geom_bar(aes(y = count_mod), fill = "grey", stat='identity') +
+  geom_point(aes(y = est_count, color = "violetred")) +
+  geom_line(aes(y = est_count, color = "violetred"), size = 1) +
+  scale_color_manual(name = "distribution",
+                     values = c("grey" = "grey", "violetred" = "violetred"),
+                     labels = c("actual", "estimated"))  +
+  labs(x = "amino acids ranked, k", y = "count") +
+  theme(legend.position = "none")
+
 # ordered_count %>%
-#   filter(site == 1) %>%
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = count, color = "steelblue")) +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   scale_color_manual(name = "distribution",  
-#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-#                      labels = c("actual", "estimated")) +
-#   ggtitle("site = 1") 
+#   group_by(site) %>%
+#   filter(count != 0) %>%
+#   mutate(num = n()) %>% 
+#   filter(num != 1) -> ordered_count_variable
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
 ordered_count %>% nest(-site) %>%
-  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+  mutate(chisq = map(data, ~ sum(((.$count_mod - .$est_count)^2)/.$est_count)),
          p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
   select(-data) %>%
   mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results
@@ -131,7 +148,8 @@ site_aa_freq_2 %>%
 left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
 ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
-  geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16)
+  geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) +
+  labs(title = "Null model quadratic fit", x = "eff_aa actual", y = "eff_aa fit")
 
 # eff_aa_all %>% 
 #   ggplot(aes(x=site, y=eff_aa)) + geom_point() + 
