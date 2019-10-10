@@ -80,21 +80,13 @@ observed_aa %>%
 
 #ak+bk^2
 #a(k-k0)^2; k0<1, a<= 0
+# poly(k,2) not working
 observed_aa %>% nest(-site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ poly(k,2), data = .)),
+  mutate(fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
          intercept = map_dbl(fit, ~ (.)$coefficients[1]),
          slope = map_dbl(fit, ~ (.)$coefficients[2]),
          sqr_slp = map_dbl(fit, ~ (.)$coefficients[3])) %>% 
   select(-data, -fit) -> fits_2param
-
-
-# check fit at one site to see if it appears ok - it does here
-# x <- data.frame(k = seq(1,20))
-# x %>% mutate(y = 0 - 0.59563150*k + 0.0156963946*k*k) -> xy 
-# observed_aa %>% filter(site == 1) -> test_df
-# left_join(xy, test_df) -> plot_df
-# plot_df %>%
-#   ggplot() + geom_point(aes(x=k, y=ln_count)) + geom_point(aes(x=k, y=y))
 
 # visualize the distribution (at a given site) with linear fits
 ordered_count %>%
@@ -115,7 +107,7 @@ ordered_count %>%
 
 # visual comparison
 ordered_count %>%
-  filter(site == 92) %>%
+  filter(site == 4) %>%
   ggplot(aes(x = k)) +
   geom_point(aes(y = count), fill = "grey", stat='identity') +
   geom_point(aes(y = est_count, color = "violetred")) +
@@ -169,6 +161,20 @@ ggplot(chisq_results, aes(chisq)) + geom_density()
 # chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 # chisq_results_reg %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_reg)
 
+ordered_count %>%
+  filter(site == 1) %>%
+  ggplot(aes(x = k)) +
+  geom_bar(aes(y = count, fill = "actual"), fill = "grey", stat='identity') +
+  geom_point(aes(y = est_count, color = "Estimated")) +
+  geom_line(aes(y = est_count, color = "Estimated")) +
+  scale_color_manual(" ", values = c("actual" = "grey", "Estimated" = "violetred"))  +
+  scale_fill_manual(" ", values = "grey")  +
+  theme(legend.position = "none") +
+  labs(x = "k", y = "Count") +
+  theme(text = element_text(size = 20),
+        axis.text = element_text(size = 20)) +
+  ggtitle("site = 1") #+ scale_y_log10()
+
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
@@ -198,7 +204,7 @@ left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
 ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
   geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) + 
-  labs(title = "3 parameter fit", x = "eff_aa actual", y = "eff_aa fit")
+  labs(title = "3 parameter fit", x = "eff_aa actual", y = "eff_aa fit") #-> plot3
 
 
 
@@ -230,7 +236,7 @@ ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) +
   geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
   #ggtitle("1B4T_A") +
   #ylim(-10,1000) ++
-  labs(x = "effective number of amino acids", y = "1/slope", title = "2AIU_A") +
+  labs(x = "effective number of amino acids", y = "1/slope") +
   theme(legend.position = "right",
         text = element_text(size = 20),
         axis.text = element_text(size = 20),

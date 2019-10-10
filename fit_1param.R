@@ -205,7 +205,7 @@ left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
 ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
   geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) + 
-  labs(title = "1 parameter fit", x = "eff_aa actual", y = "eff_aa fit")
+  labs(title = "1 parameter fit", x = "eff_aa actual", y = "eff_aa fit") 
 
 
 #------- RELATIONSHIP BETWEEN GAMMA & EFF AA -------
