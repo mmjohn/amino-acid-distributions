@@ -4,6 +4,7 @@ library(tidyverse)
 library(stringr)
 library(cowplot)
 library(broom)
+theme_set(theme_cowplot())
 
 # list of conditions: case_when()
 # cut() to make intervals - instead of 19 ifelse statements

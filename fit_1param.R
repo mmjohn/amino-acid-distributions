@@ -5,6 +5,7 @@ library(tidyverse)
 library(stringr)
 library(cowplot)
 library(broom)
+theme_set(theme_cowplot())
 
 
 # mean chi square

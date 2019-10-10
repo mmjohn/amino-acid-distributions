@@ -3,6 +3,7 @@ library(Biostrings)
 library(stringr)
 library(cowplot)
 library(broom)
+theme_set(theme_cowplot())
 
 # import alignment
 fasta_file <- readAAStringSet("data/real/5PTP_A_rp35.mafft.processed.afa", format = "fasta")

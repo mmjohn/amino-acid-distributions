@@ -6,6 +6,7 @@ library(tidyverse)
 library(stringr)
 library(cowplot)
 library(broom)
+theme_set(theme_cowplot())
 
 # read in data
 alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
