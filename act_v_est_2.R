@@ -109,77 +109,53 @@ ordered_count %>%
   mutate(est_count = sum(count)*est_rel) -> ordered_count
 
 # visual comparison
+# ordered_count %>%
+#   filter(site == 3) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = count, color = "steelblue")) +
+#   geom_point(aes(y = est_count, color = "violetred")) +
+#   scale_color_manual(name = "distribution",  
+#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
+#                      labels = c("actual", "estimated")) +
+#   ggtitle("site = 3") 
+
 ordered_count %>%
-  filter(site == 3) %>%
+  filter(site == 35) %>%
   ggplot(aes(x = k)) +
-  geom_point(aes(y = count, color = "steelblue")) +
+  geom_bar(aes(y = count), fill = "grey", stat='identity') +
   geom_point(aes(y = est_count, color = "violetred")) +
-  scale_color_manual(name = "distribution",  
-                     values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-                     labels = c("actual", "estimated")) +
-  ggtitle("site = 3") #-> q1
+  geom_line(aes(y = est_count, color = "violetred"), size = 1) +
+  scale_color_manual(name = "distribution",
+                     values = c("grey" = "grey", "violetred" = "violetred"),
+                     labels = c("actual", "estimated"))  +
+  labs(x = "Amino acids ranked, k", y = "Count") +
+  theme(legend.position = "none",
+        axis.ticks.y = ) +
+  scale_x_discrete(limits = c(5,10,15,20), expand = c(0,0)) +
+  scale_y_discrete(limits = c(0,25,50,75,100), expand = c(0,0)) -> fig1
 
-# ordered_count %>%
-#   filter(site == 113) %>%
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = count, color = "steelblue")) +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   scale_color_manual(name = "distribution",  
-#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-#                      labels = c("actual", "estimated")) +
-#   ggtitle("site = 113") #-> q2
-# 
-# ordered_count %>%
-#   filter(site == 33) %>%
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = count, color = "steelblue")) +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   scale_color_manual(name = "distribution",  
-#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-#                      labels = c("actual", "estimated")) +
-#   ggtitle("site = 33") #-> q3
-# 
-# ordered_count %>%
-#   filter(site ==6) %>%
-#   ggplot(aes(x = k)) +
-#   geom_point(aes(y = count, color = "steelblue")) +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   scale_color_manual(name = "distribution",  
-#                      values = c("steelblue" = "steelblue", "violetred" = "violetred"), 
-#                      labels = c("actual", "estimated")) +
-#   ggtitle("site = 6") #-> q4
-
-# q <- plot_grid(q1 + theme(legend.position = "none"),
-#                q2 + theme(legend.position = "none"), 
-#                q3 + theme(legend.position = "none"), 
-#                q4 + theme(legend.position = "none"), 
-#                ncol = 2)
-# legend <- get_legend(q1)
-# title <- ggdraw() + 
-#   draw_label("Actual vs. estimated distributions",
-#              fontface = 'bold')
-# plot_grid(title, q, ncol = 1, rel_heights = c(0.1, 1)) -> tt
-# plot_grid(tt, legend, rel_widths = c(2, .3))
+save_plot("figure1.pdf", fig1, ncol = 1, nrow = 1, base_height = 3.71,
+          base_asp = 1.618, base_width = NULL)
 
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
-# SOMETHING WRONG HERE - SEE _diff.R
 # use raw count
 ordered_count %>% nest(-site) %>%
-  mutate(chisq = map(data, ~ sum((.$count - .$est_count)/.$est_count)),
+  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
          p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
-  select(-data) -> chisq_results
+  select(-data) %>%
+  mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results
 
 chisq_results %>%
   mutate(result = "pass") -> chisq_results
 
-chisq_results$result[chisq_results$p_value < 0.05] <- "fail"
+chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 
 # test manually for a few sites
 df1 <- filter(ordered_count, site == 1)
-chisq1 <- sum((df1$count - df1$est_count)/df1$est_count)
+chisq1 <- sum(((df1$count - df1$est_count)^2)/df1$est_count)
 pchisq(chisq1, 18, lower.tail = FALSE)
 
 
