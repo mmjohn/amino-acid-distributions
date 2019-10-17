@@ -197,25 +197,26 @@ gam_v_effaa %>%
   select(site, slope, eff_aa, result) -> gam_v_effaa
 
 # theoretical prediction
-neff <- function(lambda) {
-  pi <- exp(-lambda*(0:19))
+neff2 <- function(lambda_inv) {
+  lambda <- 1/lambda_inv
+  pi <- lambda*exp(-lambda*(0:19))
   C <- sum(pi)
   pi <- pi/C
   exp(-sum(pi*log(pi)))
 }
 
-
-df_theory <- data.frame(lambda = (0:100)/10, ne = vapply((0:100)/10, neff, numeric(1)))
+df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
 
 ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory, aes(ne, -1/lambda), inherit.aes = FALSE) 
+  geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
+  #ggtitle("1B4T_A") +
+  #ylim(-10,1000) ++
+  labs(x = "Effective number of amino acids", y = expression(~lambda^-1)) +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(5,10,15), limits = c(1,17), expand = c(0,0)) +
+  scale_y_continuous(limits = c(-10,0.1), expand = c(0,0)) -> fig2
 
-# eff_aa_all %>%
-#   left_join(gam_v_effaa, by = "site") -> df_plot
-# 
-# ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
-#   geom_point(aes(color = result)) +
-#   geom_point(data = data.frame(x = 1, y = 0), aes(x = x, y = y)) +
-#   geom_line(data = df_plot, aes(x = (exp(-n)/eff_aa.x), y = 1/slope))
+save_plot("figure2.pdf", fig2, ncol = 1, nrow = 1, base_height = 3.71,
+          base_asp = 1.618, base_width = NULL)
 
