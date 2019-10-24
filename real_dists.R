@@ -3,6 +3,7 @@ library(Biostrings)
 library(stringr)
 library(cowplot)
 library(broom)
+library(ggtext)
 theme_set(theme_cowplot())
 
 # import alignment
@@ -23,7 +24,7 @@ names(int_df) <- substring(names(int_df),2)
 int_df %>%
   mutate(num_seq = seq(1:nrow(int_df))) -> int_df
 int_df %>%
-  gather(key = "site", value = "aa", 1:221) -> tidy_align
+  gather(key = "site", value = "aa", 1:222) -> tidy_align
 tidy_align$site <- as.numeric(tidy_align$site)
 
 #---------- ACTUAL DISTRIBUTION ----------
@@ -97,7 +98,7 @@ align_count_bysite %>%
   ylab("observed count") +
   theme(text = element_text(size = 35),
         axis.text = element_text(size = 35)) 
-ggsave("gaps.jpg")
+#ggsave("gaps.jpg")
 
 # estimate count
 no_gaps %>% 
@@ -125,7 +126,6 @@ chisq_results$result[chisq_results$p_value < 0.05] <- "fail"
 
 chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 
-
 no_gaps %>% 
   filter(count != 0) %>% 
   group_by(site) %>%
@@ -137,9 +137,6 @@ observed_chi %>%
   mutate(result = "pass") -> observed_chi
 observed_chi$result[observed_chi$p.value < 0.05] <- "fail"
 observed_chi %>% filter(result == "fail") %>% nrow()/nrow(observed_chi)
-
-
-
 
 #visual site that failed chi-squared
 no_gaps %>%
@@ -155,7 +152,7 @@ no_gaps %>%
   theme(legend.position = "none",
         text = element_text(size = 35),
         axis.text = element_text(size = 35))
-ggsave("real_fail.jpg")
+#ggsave("real_fail.jpg")
 
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
 observed_aa %>%
@@ -191,13 +188,26 @@ neff2 <- function(lambda_inv) {
 
 df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
 
-ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
+ggplot(gam_v_effaa, 
+       aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
-  #geom_line(data = df_theory, aes(ne, -1/lambda), inherit.aes = FALSE) +
-  geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
-  labs(x = "effective number of amino acids", y = "1/slope", title = "5PTP_A_rp35") +
+  geom_line(data = df_theory2, 
+            aes(ne, lambda_inv), 
+            inherit.aes = FALSE, 
+            size = 1) +
+  geom_vline(xintercept = 1, 
+             linetype =2) +
+  labs(x = "*n*<sub>eff</sub>", 
+       y = expression(~lambda^-1)) +
   theme(legend.position = "none",
-        text = element_text(size = 35),
-        axis.text = element_text(size = 35),
-        plot.title = element_text(size = 35)) #-> plot10
-ggsave("real_fail_dist.jpg")
+        axis.title.x = element_markdown()) +
+  scale_x_continuous(
+    breaks = c(0,5,10,15), 
+    limits = c(0,17), 
+    expand = c(0,0)
+  ) +
+  scale_y_continuous(
+    limits = c(-10,0.1), 
+    expand = c(0,0)
+  ) +
+  coord_cartesian(clip = "off")
