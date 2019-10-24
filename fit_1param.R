@@ -5,6 +5,7 @@ library(tidyverse)
 library(stringr)
 library(cowplot)
 library(broom)
+library(ggtext)
 theme_set(theme_cowplot())
 
 
@@ -161,20 +162,34 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 #chisq1 <- sum((df1$count - df1$est_count)^2/df1$est_count)
 #pchisq(chisq1, 18, lower.tail = FALSE)
 
-
 ordered_count %>%
-  filter(site == 1) %>%
+  filter(site == 35) %>%
   ggplot(aes(x = k)) +
-    geom_bar(aes(y = count, fill = "actual"), fill = "grey", stat='identity') +
-    geom_point(aes(y = est_count, color = "Estimated")) +
-    geom_line(aes(y = est_count, color = "Estimated")) +
-    scale_color_manual(" ", values = c("actual" = "grey", "Estimated" = "violetred"))  +
-    scale_fill_manual(" ", values = "grey")  +
-    theme(legend.position = "none") +
-    labs(x = "k", y = "Count") +
-    theme(text = element_text(size = 20),
-          axis.text = element_text(size = 20)) +
-  ggtitle("site = 1") 
+  geom_bar(aes(y = count), fill = "grey", stat='identity') +
+  geom_point(aes(y = est_count, color = "violetred")) +
+  geom_line(aes(y = est_count, color = "violetred"), size = 1) +
+  scale_color_manual(name = "distribution",
+                     values = c("grey" = "grey", "violetred" = "violetred"),
+                     labels = c("actual", "estimated"))  +
+  scale_x_continuous(
+    breaks = c(5, 10, 15, 20), 
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = c(0, 25, 50, 75, 100), 
+    expand = c(0, 0),
+    limits = c(0, 101)
+  ) +
+  labs(x = "Amino acids ranked, *k*", y = "Count") +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_markdown()
+  ) -> fig1
+
+fig1
+save_plot("figure1.pdf", fig1, ncol = 1, nrow = 1, base_height = 3.71,
+          base_asp = 1.618, base_width = NULL)
+
 
 
 #------- EFFECTIVE NUMBER OF AMINO ACIDS --------
@@ -204,9 +219,15 @@ site_aa_freq_2 %>%
 
 left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
-ggplot(compare_eff_aa, aes(x=eff_aa, y=eff_aa_est)) + geom_point() +
-  geom_abline(slope = 1, intercept = 0) + xlim(0,16) + ylim(0,16) + 
-  labs(title = "1 parameter fit", x = "eff_aa actual", y = "eff_aa fit") 
+ggplot(compare_eff_aa, 
+       aes(x=eff_aa, y=eff_aa_est)) + 
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0) + 
+  xlim(0,16) + 
+  ylim(0,16) + 
+  labs(title = "1 parameter fit", 
+       x = "eff_aa actual", 
+       y = "eff_aa fit") 
 
 
 #------- RELATIONSHIP BETWEEN GAMMA & EFF AA -------
@@ -218,22 +239,6 @@ gam_v_effaa %>%
   left_join(chisq_results) %>% 
   select(site, slope, eff_aa, result) -> gam_v_effaa
 
-# observed_fits %>%
-#   left_join(eff_aa_all) %>% 
-#   select(site, slope, eff_aa) %>%
-#   left_join(observed_chi) %>% 
-#   select(site, slope, eff_aa, result) -> obs_gam_v_effaa
-
-# theoretical prediction
-# neff <- function(lambda) {
-#   pi <- exp(-lambda*(0:19))
-#   C <- sum(pi)
-#   pi <- pi/C
-#   exp(-sum(pi*log(pi)))
-# }
-# 
-# df_theory <- data.frame(lambda = (0:100)/10, ne = vapply((0:100)/10, neff, numeric(1)))
-
 neff2 <- function(lambda_inv) {
   lambda <- 1/lambda_inv
   pi <- lambda*exp(-lambda*(0:19))
@@ -244,14 +249,42 @@ neff2 <- function(lambda_inv) {
 
 df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
 
-ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
+ggplot(gam_v_effaa, 
+       aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
-  #geom_line(data = df_theory, aes(ne, -1/lambda), inherit.aes = FALSE) +
-  geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
-  #ggtitle("1B4T_A") +
-  #ylim(-10,1000) ++
-  labs(x = "effective number of amino acids", y = "1/slope") +
-  theme(legend.position = "right",
-        text = element_text(size = 20),
-        axis.text = element_text(size = 20))  #-> plot1
+  geom_line(data = df_theory2, 
+            aes(ne, lambda_inv), 
+            inherit.aes = FALSE, 
+            size = 1) +
+  geom_vline(xintercept = 1, 
+             linetype =2) +
+  labs(x = "*n*<sub>eff</sub>", 
+       y = expression(~lambda^-1)) +
+  theme(legend.position = "none",
+        axis.title.x = element_markdown()) +
+  scale_x_continuous(
+    breaks = c(0,5,10,15), 
+    limits = c(0,17), 
+    expand = c(0,0)
+  ) +
+  scale_y_continuous(
+    limits = c(-10,0.1), 
+    expand = c(0,0)
+  ) +
+  coord_cartesian(clip = "off") -> fig2
+
+fig2
+save_plot("figure2.pdf", fig2, ncol = 1, nrow = 1, base_height = 3.71,
+          base_asp = 1.618, base_width = NULL)
+
+# ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
+#   geom_point(aes(color = result)) +
+#   #geom_line(data = df_theory, aes(ne, -1/lambda), inherit.aes = FALSE) +
+#   geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
+#   #ggtitle("1B4T_A") +
+#   #ylim(-10,1000) ++
+#   labs(x = "effective number of amino acids", y = "1/slope") +
+#   theme(legend.position = "right",
+#         text = element_text(size = 20),
+#         axis.text = element_text(size = 20))  #-> plot1
 
