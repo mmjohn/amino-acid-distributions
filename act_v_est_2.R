@@ -1,3 +1,5 @@
+# USE fit_1param.R instead of this 
+
 library(tidyverse)
 library(stringr)
 library(cowplot)
