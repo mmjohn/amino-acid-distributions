@@ -119,6 +119,8 @@ ordered_count %>%
 #                      labels = c("actual", "estimated")) +
 #   ggtitle("site = 3") 
 
+library(ggtext)
+
 ordered_count %>%
   filter(site == 35) %>%
   ggplot(aes(x = k)) +
@@ -128,11 +130,24 @@ ordered_count %>%
   scale_color_manual(name = "distribution",
                      values = c("grey" = "grey", "violetred" = "violetred"),
                      labels = c("actual", "estimated"))  +
-  labs(x = "Amino acids ranked, k", y = "Count") +
-  theme(legend.position = "none",
-        axis.ticks.y = ) +
-  scale_x_discrete(limits = c(5,10,15,20), expand = c(0,0)) +
-  scale_y_discrete(limits = c(0,25,50,75,100), expand = c(0,0)) -> fig1
+  scale_x_continuous(
+    breaks = c(5, 10, 15, 20), 
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    breaks = c(0, 25, 50, 75, 100), 
+    expand = c(0, 0),
+    limits = c(0, 101)
+  ) +
+  labs(x = "Amino acids ranked, *k*", y = "Count") +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_markdown()
+  ) -> fig1
+
+#"Am<sub>*i*</sub>no **acids** ranked, *k*"
+
+fig1
 
 save_plot("figure1.pdf", fig1, ncol = 1, nrow = 1, base_height = 3.71,
           base_asp = 1.618, base_width = NULL)
@@ -207,16 +222,31 @@ neff2 <- function(lambda_inv) {
 
 df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
 
-ggplot(gam_v_effaa, aes(x = eff_aa, y = 1/slope)) + 
+ggplot(gam_v_effaa, 
+       aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory2, aes(ne, lambda_inv), inherit.aes = FALSE, size = 1) +
-  #ggtitle("1B4T_A") +
-  #ylim(-10,1000) ++
-  labs(x = "Effective number of amino acids", y = expression(~lambda^-1)) +
-  theme(legend.position = "none") +
-  scale_x_continuous(breaks = c(5,10,15), limits = c(1,17), expand = c(0,0)) +
-  scale_y_continuous(limits = c(-10,0.1), expand = c(0,0)) -> fig2
+  geom_line(data = df_theory2, 
+            aes(ne, lambda_inv), 
+            inherit.aes = FALSE, 
+            size = 1) +
+  geom_vline(xintercept = 1, 
+             linetype =2) +
+  labs(x = "*n*<sub>eff</sub>", 
+       y = expression(~lambda^-1)) +
+  theme(legend.position = "none",
+        axis.title.x = element_markdown()) +
+  scale_x_continuous(
+    breaks = c(0,5,10,15), 
+    limits = c(0,17), 
+    expand = c(0,0)
+  ) +
+  scale_y_continuous(
+    limits = c(-10,0.1), 
+    expand = c(0,0)
+    ) +
+  coord_cartesian(clip = "off") -> fig2
 
+fig2
 save_plot("figure2.pdf", fig2, ncol = 1, nrow = 1, base_height = 3.71,
           base_asp = 1.618, base_width = NULL)
 
