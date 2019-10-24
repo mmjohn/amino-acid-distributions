@@ -32,7 +32,7 @@ tidy_align %>%
   group_by(site, aa) %>% 
   summarize(count = n()) -> site_aa_count
 
-empty_counts <- data_frame(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
                            count = rep(0, 20))
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
@@ -44,10 +44,11 @@ count_by_site <- function(site_df) {
 }
 
 # 2. Then call that function for all sites and combine the resulting data frames.
-tidy_align %>% nest(-site) %>%
+tidy_align %>% 
+  nest(data = -site) %>%
   mutate(counts = map(data, count_by_site)) %>%
-  dplyr::select(-data) %>%   # use sessionInfo() to find what packages are loaded, conflicted package to give warnings
-  unnest() -> all_count
+  dplyr::select(-data) %>%   
+  unnest(cols = c(counts)) -> all_count
 
 
 #----------- ESTIMATED DISTRIBUTION ------------
@@ -76,7 +77,8 @@ observed_aa %>%
 
 # fit to a linear function, using map and BROOM 
 # SET INTERCEPT TO 0
-observed_aa %>% nest(-site) %>%
+observed_aa %>% 
+  nest(data = -site) %>%
   mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
          #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
          slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
@@ -93,20 +95,6 @@ ordered_count %>%
 ordered_count %>%
   mutate(ln_count = log(rel_count)) -> ordered_count
 
-# library(forcats)
-# ordered_count %>%
-#   filter(site==77) %>%
-#   ggplot() +
-#   #geom_bar(aes(x = fct_inorder(aa), y = count), stat = 'identity') +
-#   geom_point(aes(x = fct_inorder(aa), y = ln_count)) +
-#   geom_abline(intercept = 0, slope = -0.2046281) + # NOTE: look up slope from ordered_fits dataframe
-#   xlab("ordered aa") +
-#   ylab("ln(count)") +
-#   theme(text = element_text(size = 40),
-#         axis.text = element_text(size = 40))
-# 
-
-
 ordered_count %>% 
   left_join(observed_fits, by = "site") %>%
   mutate(est_dist = slope*exp(k*slope)) -> ordered_count
@@ -117,29 +105,12 @@ ordered_count %>%
   mutate(est_rel = est_dist/sum(est_dist)) %>%
   mutate(est_count = sum(count)*est_rel) -> ordered_count
 
-#ordered_count %>% filter(site == 78) -> plot_df 
-#plot_df$aa <- factor(plot_df$aa, levels = plot_df$aa[order(plot_df$k)])
-
-# visual comparison
-# ordered_count %>%
-#   filter(site == 10) %>%
-#   ggplot(aes(x = k)) +
-#   geom_bar(aes(y = count), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count, color = "violetred")) +
-#   geom_line(aes(y = est_count, color = "violetred"), size = 1) 
-#   scale_color_manual(name = "distribution",
-#                      values = c("grey" = "grey", "violetred" = "violetred"),
-#                      labels = c("actual", "estimated"))  +
-#   labs(x = "amino acids ranked, k", y = "count") +
-#   theme(legend.position = "none",
-#         text = element_text(size = 40),
-#         axis.text = element_text(size = 40)) 
-
 
 
 #------- CHI-SQUARED: ACTUAL VS. ESTIMATED DIST -------
 # use raw count
-ordered_count %>% nest(-site) %>%
+ordered_count %>% nest(data = -site) %>%
+  ungroup() %>%
   mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
          p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
   select(-data) %>%
@@ -161,6 +132,7 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 #df1 <- filter(ordered_count, site == 1)
 #chisq1 <- sum((df1$count - df1$est_count)^2/df1$est_count)
 #pchisq(chisq1, 18, lower.tail = FALSE)
+
 
 ordered_count %>%
   filter(site == 35) %>%
