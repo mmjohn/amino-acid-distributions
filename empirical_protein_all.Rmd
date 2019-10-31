@@ -1,0 +1,16 @@
+---
+title: "Empirical protein alignments"
+author: "Mackenzie Johnson"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This RMarkdown document repeats the fitting procedures for 10 empirical protein alignments and produces Figure 4.
+
+

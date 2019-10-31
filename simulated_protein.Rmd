@@ -1,0 +1,15 @@
+---
+title: "Simulated protein alignment"
+author: "Mackenzie Johnson"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+RMarkdown document that shows the process for a single simulated protein alignment, produces Figures 1 and 2.
+

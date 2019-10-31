@@ -1,0 +1,16 @@
+---
+title: "Null models"
+author: "Mackenzie Johnson"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is the RMarkdown document for the null models used to produce Figure 5. 
+
+

@@ -1,0 +1,16 @@
+---
+title: "Simulated protein alignments"
+author: "Mackenzie Johnson"
+date: "10/31/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This RMarkdown document is an extension of simulated_protein.Rmd. It repeats the analysis for 10 simulated protein alignments and produces Figure 3.
+
+
