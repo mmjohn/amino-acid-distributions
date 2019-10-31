@@ -13,4 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This is the RMarkdown document used to produce Figure 6. It compares results for fitting distributions with a different number of parameters.
 
+Refer back to fit_1param.R for figure code
 
+# mean chi square
+# does one dist systematically fit better
+# aic or lrt to see if increase in parameter is worth it
+# distribution of chi square
