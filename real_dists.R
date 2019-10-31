@@ -126,6 +126,7 @@ chisq_results$result[chisq_results$p_value < 0.05] <- "fail"
 
 chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
 
+# chi-squared analysis with only observed aa
 no_gaps %>% 
   filter(count != 0) %>% 
   group_by(site) %>%
