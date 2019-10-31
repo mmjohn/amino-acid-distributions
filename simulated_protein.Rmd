@@ -9,11 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Analysis of distribution fitting with a single simulated protein alignment
 
 RMarkdown document that shows the process for a single simulated protein alignment, produces Figures 1 and 2.
 
-```{r}
+```{r, message=FALSE}
 # fit linear model to normalized, log-transformed data
 # set intercept to 0, only fitting 1 parameter (slope)
 
@@ -27,7 +27,7 @@ theme_set(theme_cowplot())
 ```
 
 Read in and reformat data
-```{r}
+```{r, message=FALSE}
 # read in data
 alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
 
@@ -40,7 +40,7 @@ tidy_align$site = as.numeric(tidy_align$site)
 ```
 
 Actual distribution
-```{r}
+```{r, message=FALSE}
 # determine the number of each AA at each site
 tidy_align %>% 
   group_by(site, aa) %>% 
@@ -68,7 +68,7 @@ tidy_align %>%
 ```
 
 Estimated distribution
-```{r}
+```{r, message=FALSE}
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
 all_count %>%
@@ -125,7 +125,7 @@ ordered_count %>%
 
 
 Chi-squared test to compare distributions
-```{r}
+```{r, message=FALSE}
 # use raw count
 ordered_count %>% nest(data = -site) %>%
   ungroup() %>%
@@ -157,7 +157,7 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 
 
 Figure 1
-```{r}
+```{r, message=FALSE}
 ordered_count %>%
   filter(site == 35) %>%
   ggplot(aes(x = k)) +
@@ -189,7 +189,7 @@ save_plot("figure1.pdf", fig1, ncol = 1, nrow = 1, base_height = 3.71,
 ```
 
 Effective number of amino acids
-```{r}
+```{r, message=FALSE}
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
 # eff aa for actual distribution
@@ -219,7 +219,7 @@ left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 ```
 
 Relationship between lambda and effective number of amino acids
-```{r}
+```{r, message=FALSE}
 observed_fits %>%
   left_join(eff_aa_all) %>% 
   select(site, slope, eff_aa)-> gam_v_effaa
@@ -241,7 +241,7 @@ df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff
 
 
 Figure 2
-```{r}
+```{r, message=FALSE}
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
