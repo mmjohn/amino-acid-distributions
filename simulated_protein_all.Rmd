@@ -13,7 +13,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 This RMarkdown document is an extension of simulated_protein.Rmd. It repeats the analysis for 10 simulated protein alignments and produces Figure 3.
 
-
 ```{r, message=FALSE}
 # fit linear model to normalized, log-transformed data
 # set intercept to 0, only fitting 1 parameter (slope)
@@ -26,6 +25,7 @@ library(broom)
 library(ggtext)
 theme_set(theme_cowplot())
 ```
+
 
 Read in and reformat data
 ```{r, message=FALSE}
@@ -53,35 +53,57 @@ alignments <- tibble(filename = simulated_files) %>%
 
 ```
 
-Actual distribution
+
+Actual distribution 
 ```{r, message=FALSE}
 # determine the number of each AA at each site
-tidy_align %>% 
-  group_by(site, aa) %>% 
-  summarize(count = n()) -> site_aa_count
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
 
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
-                           count = rep(0, 20))
+  }
+
+alignments %>%
+  nest(data = c(sequence, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count
+
+# add unobserved amino acids to counts
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P',
+                              'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+                       count = rep(0, 20))
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
-count_by_site <- function(site_df) {
+count_zero_aa_site <- function(site_df) {
   site_df %>% 
     group_by(aa) %>% 
     summarize(count = n()) -> counts
   full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
 }
 
-# 2. Then call that function for all sites and combine the resulting data frames.
-tidy_align %>% 
-  nest(data = -site) %>%
-  mutate(counts = map(data, count_by_site)) %>%
-  dplyr::select(-data) %>%   
-  unnest(cols = c(counts)) -> all_count
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+}
 
+# 3. Apply to all proteins
+alignments %>%
+  nest(data = c(sequence, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count
 
 ```
 
-Estimated distribution
+
+Estimated distribution - update
 ```{r, message=FALSE}
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
@@ -138,7 +160,7 @@ ordered_count %>%
 ```
 
 
-Chi-squared test to compare distributions
+Chi-squared test to compare distributions - update
 ```{r, message=FALSE}
 # use raw count
 ordered_count %>% nest(data = -site) %>%
@@ -170,39 +192,9 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 ```
 
 
-Figure 1
-```{r, message=FALSE}
-ordered_count %>%
-  filter(site == 35) %>%
-  ggplot(aes(x = k)) +
-  geom_bar(aes(y = count), fill = "grey", stat='identity') +
-  geom_point(aes(y = est_count, color = "violetred")) +
-  geom_line(aes(y = est_count, color = "violetred"), size = 1) +
-  scale_color_manual(name = "distribution",
-                     values = c("grey" = "grey", "violetred" = "violetred"),
-                     labels = c("actual", "estimated"))  +
-  scale_x_continuous(
-    breaks = c(5, 10, 15, 20), 
-    expand = c(0, 0)
-  ) +
-  scale_y_continuous(
-    breaks = c(0, 25, 50, 75, 100), 
-    expand = c(0, 0),
-    limits = c(0, 101)
-  ) +
-  labs(x = "Amino acids ranked, *k*", y = "Count") +
-  theme(
-    legend.position = "none",
-    axis.title.x = element_markdown()
-  ) -> fig1
+Figure 1 code removed 
 
-fig1
-save_plot("figure1.pdf", fig1, ncol = 1, nrow = 1, base_height = 3.71,
-          base_asp = 1.618, base_width = NULL)
-
-```
-
-Effective number of amino acids
+Effective number of amino acids - update
 ```{r, message=FALSE}
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
@@ -232,7 +224,8 @@ left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
 ```
 
-Relationship between lambda and effective number of amino acids
+
+Relationship between lambda and effective number of amino acids - update
 ```{r, message=FALSE}
 observed_fits %>%
   left_join(eff_aa_all) %>% 
@@ -254,7 +247,7 @@ df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff
 ```
 
 
-Figure 2
+Figure 2 - update to large figure
 ```{r, message=FALSE}
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, y = 1/slope)) + 
