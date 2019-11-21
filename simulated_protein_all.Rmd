@@ -78,19 +78,23 @@ empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
 count_zero_aa_site <- function(site_df) {
+  
   site_df %>% 
     group_by(aa) %>% 
     summarize(count = n()) -> counts
   full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
-}
+
+  }
 
 # 2. Function to call that function for each protein.
 count_zero_aa_protein <- function(protein_df) {
+  
   protein_df %>%
     nest(data = -site) %>%
     mutate(counts = map(data, count_zero_aa_site)) %>%
     select(-data) %>%
     unnest(cols = counts)
+
 }
 
 # 3. Apply to all proteins
@@ -107,38 +111,86 @@ Estimated distribution - update
 ```{r, message=FALSE}
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
 all_count %>%
-  arrange(all_count$site, desc(count)) -> ordered_count
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count
 
 # make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
-ordered_count %>%
-  group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> ordered_count
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(1:20))
+  
+}
+
+ordered_count %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count
 
 # remove aa with zero values
 ordered_count %>%
   filter(count > 0) -> observed_aa
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
+add_rel_count <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(rel_count = count/max(count))
+  
+}
+
 observed_aa %>%
-  group_by(site) %>%
-  mutate(rel_count = count/max(count)) -> observed_aa
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa
 
 # log-transformed data
+add_ln_count <- function(protein_df) {
+  
+  protein_df %>% 
+    mutate(ln_count = log(rel_count))
+  
+}
+
 observed_aa %>%
-  mutate(ln_count = log(rel_count)) -> observed_aa 
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa
 
 # fit to a linear function, using map and BROOM 
 # SET INTERCEPT TO 0
-observed_aa %>% 
-  nest(data = -site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
-  select(-data, -fit) -> observed_fits
 
-# data frame with slope from linear fit to log transformed data - slope = gamma, intercept = 0
-#head(observed_fits)
+fit_lm_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    select(-data, -fit)
+  
+}
+
+observed_aa %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits
 
 # visualize the distribution (at a given site) with linear fits
 # NOTE: sites that are highly conserved for a single aa still look exponential in log scale (see sites 3 and 9 as example) 3, 6, 33
