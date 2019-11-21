@@ -270,33 +270,63 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 ```
 
 
-Figure 1 code removed 
-
-Effective number of amino acids - update
+Effective number of amino acids - updated; fix eff_aa_est
 ```{r, message=FALSE}
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
 # eff aa for actual distribution
+add_site_aa_freq <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(frequency = (count)/sum(count))
+  
+}
+
 observed_aa %>%
-  group_by(site) %>%
-  mutate(frequency = (count)/sum(count)) -> site_aa_freq
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(aa_freq = map(data, add_site_aa_freq)) %>% 
+  select(-data) %>% 
+  unnest(cols = aa_freq) -> site_aa_freq
+
+site_aa_freq %>%
+  mutate(flnf = frequency*log(frequency)) -> site_aa_freq
+
+add_eff_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    summarize(entropy = -sum(flnf),
+              eff_aa = exp(entropy),
+              n = length(unique(aa)))
+  
+}
 
 site_aa_freq %>% 
-  mutate(flnf = frequency*log(frequency)) %>%
-  group_by(site) %>% 
-  summarize(entropy = -sum(flnf),
-            eff_aa = exp(entropy),
-            n = length(unique(aa))) -> eff_aa_all
+  nest(data = c(site, aa, count, k, rel_count, ln_count, frequency, flnf)) %>% 
+  mutate(eff_aa = map(data, add_eff_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = eff_aa) -> eff_aa_all
 
 # eff aa for estimated distribution
-ordered_count %>% 
-  group_by(site) %>%
-  mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2
-site_aa_freq_2 %>% 
-  mutate(flnf = freq*log(freq)) %>%
-  group_by(site) %>%
-  summarize(entr = -sum(flnf),
-            eff_aa_est = exp(entr)) -> eff_aa_all_est
+ordered_count %>%
+  nest(data = c(site, aa, count, k, rel_count, ln_count,
+                slope, est_dist, est_rel, est_count)) %>% 
+  mutate(aa_freq = map(data, add_site_aa_freq)) %>% 
+  select(-data) %>% 
+  unnest(cols = aa_freq) -> site_aa_freq_est
+
+site_aa_freq_est %>%
+  mutate(flnf = frequency*log(frequency)) -> site_aa_freq_est
+
+# NOT WORKING - FIX FOR OTHER FIG
+site_aa_freq_est %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, 
+                est_dist, est_rel, est_count, frequency, flnf)) %>% 
+  mutate(eff_aa = map(data, add_eff_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = eff_aa) -> eff_aa_est
+
 
 left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
