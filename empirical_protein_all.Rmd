@@ -26,13 +26,15 @@ theme_set(theme_cowplot())
 
 Read in and reformat data - update
 ```{r, message=FALSE}
-
+# read in all .csv files in /data/real/
+empirical_files <- dir("data/real", pattern = "*.mafft.processed.afa", full.names = T)
 
 
 
 
 # import alignment
-fasta_file <- readAAStringSet("data/real/5PTP_A_rp35.mafft.processed.afa", format = "fasta")
+file_name <- "data/real/5PTP_A_rp35.mafft.processed.afa"
+fasta_file <- readAAStringSet(filename, format = "fasta")
 seq_name = names(fasta_file)
 aa_seq = paste(fasta_file)
 seq_num = seq(1:length(seq_name))
