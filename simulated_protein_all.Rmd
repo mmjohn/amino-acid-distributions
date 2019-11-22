@@ -333,7 +333,7 @@ site_aa_freq_est %>%
 ```
 
 
-Relationship between lambda and effective number of amino acids
+Relationship between $\lambda$ and effective number of amino acids
 ```{r, message=FALSE}
 observed_fits %>%
   left_join(eff_aa_all) %>% 

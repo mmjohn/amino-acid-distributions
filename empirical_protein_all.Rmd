@@ -9,8 +9,49 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Analysis of distribution fitting for multiple empirical protein alignments
 
-This RMarkdown document repeats the fitting procedures for 10 empirical protein alignments and produces Figure 4.
+This RMarkdown document repeats the fitting procedures for 10 empirical protein alignments and produces Figure 4. It serves the same purpose as simulated_protein_all.Rmd, but for empirical protein alignments.
+
+```{r, message=FALSE}
+# load packages
+library(tidyverse)
+library(Biostrings)
+library(stringr)
+library(cowplot)
+library(broom)
+library(ggtext)
+theme_set(theme_cowplot())
+```
+
+Read in and reformat data
+```{r, message=FALSE}
+
+
+```
+
+
+
+Actual distribution 
+
+
+Estimated distribution
+
+
+Chi-squared test to compare distributions
+
+
+Effective number of amino acids
+
+
+Relationship between $\lambda$ and effective number of amino acids
+
+
+Figure 4
+
+
+
+
+
 
 
