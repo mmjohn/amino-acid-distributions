@@ -371,7 +371,7 @@ ggplot(gam_v_effaa,
   labs(
     x = "Effective number of amino acids *n*<sub>eff</sub>", 
     #y = expression(~lambda^-1)
-    y = "Fitting paramter &lambda;<sup>-1</sup>",
+    y = "Fitting parameter &lambda;<sup>-1</sup>",
     color = "Result"
   ) +
   scale_y_continuous(limits = c(-15, 2), expand = c(0, 0)) +
@@ -388,7 +388,7 @@ ggplot(gam_v_effaa,
   ) -> fig3
 
 fig3
-save_plot("figure3.pdf", fig3, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figure3.png", fig3, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 # 
