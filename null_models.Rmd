@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## Relationship between $\lambda$ and $n_{eff}$ under a null model
 
 This is the RMarkdown document for the null models used to produce Figure 5. 
 
