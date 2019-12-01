@@ -344,7 +344,7 @@ site_aa_freq %>%
 ```
 
 
-Relationship between $\lambda$ and effective number of amino acids - update
+Relationship between $\lambda$ and effective number of amino acids
 ```{r, message=FALSE}
 
 observed_fits %>%
@@ -399,7 +399,7 @@ ggplot(gam_v_effaa,
   ) -> fig4
 
 fig4
-save_plot("figure4.png", fig3, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```
