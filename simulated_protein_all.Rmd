@@ -54,7 +54,7 @@ alignments <- tibble(filename = simulated_files) %>%
 ```
 
 
-Actual distribution 
+Actual distribution
 ```{r, message=FALSE}
 # determine the number of each AA at each site
 count_aa <- function(protein_alignment) {

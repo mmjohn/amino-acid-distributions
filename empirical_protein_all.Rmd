@@ -73,38 +73,61 @@ tibble(filename = empirical_files) %>%
   unnest(cols = tidy_data) -> alignments
 
 alignments$site <- as.numeric(alignments$site)
+alignments$aa <- as.character(alignments$aa)
 
 ```
 
 
 
-Actual distribution - update
+Actual distribution
 ```{r, message=FALSE}
-
-
-
 # determine the number of each AA at each site
-tidy_align %>% 
-  group_by(site, aa) %>% 
-  summarize(count = n()) -> site_aa_count
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
 
-empty_counts <- data_frame(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+  }
+
+alignments %>%
+  nest(data = c(num_seq, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count
+
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 
+                              'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
                            count = rep(0, 20))
 
+
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
-count_by_site <- function(site_df) {
+count_zero_aa_site <- function(site_df) {
+  
   site_df %>% 
     group_by(aa) %>% 
     summarize(count = n()) -> counts
   full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
 }
 
-# 2. Then call that function for all sites and combine the resulting data frames.
-tidy_align %>% nest(-site) %>%
-  mutate(counts = map(data, count_by_site)) %>%
-  dplyr::select(-data) %>%   # use sessionInfo() to find what packages are loaded, conflicted package to give warnings
-  unnest() -> all_count
-
+# 3. Apply to all proteins
+alignments %>%
+  nest(data = c(num_seq, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count
 
 ```
 
