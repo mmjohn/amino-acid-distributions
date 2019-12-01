@@ -38,19 +38,14 @@ import_alignment <- function(filename) {
   seq_num = seq(1:length(seq_name))
   real_align <- data.frame(seq_num, aa_seq, stringsAsFactors = F)
   
-  # change sequences from strings into character vectors
-  #as.data.frame(strsplit(real_align$aa_seq, split = ""), row.names = NULL) -> int_df
-  #as.data.frame(t(int_df), row.names = NULL) -> int_df
-  
 }
 
 # change sequences from strings into character vectors
 aa_string_to_vect <- function(real_align) {
 
-  as.data.frame(strsplit(real_align$aa_seq, split = ""), row.names = NULL) -> int_df
+  as.data.frame(strsplit(real_align$aa_seq, split = ""), 
+                row.names = NULL) -> int_df
   as.data.frame(t(int_df), row.names = NULL) -> int_df
-  #row.names(int_df) <- NULL
-  #names(int_df) <- substring(names(int_df),2)
 
 }
 
@@ -132,72 +127,141 @@ alignments %>%
 ```
 
 
-Estimated distribution - update
+Estimated distribution 
 ```{r, message=FALSE}
-
-
-
-
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
-all_count %>%
-  arrange(all_count$site, desc(count)) -> ordered_count
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
 
-# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+all_count %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count
+
 # EXCLUDE all '-' entries/gaps in alignment
 ordered_count %>%
   filter(aa != "-") -> no_gaps
 
-no_gaps %>%
-  group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> no_gaps
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(1:20))
+  
+}
+
+no_gaps %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count
 
 # remove aa with zero values
-no_gaps %>%
+ordered_count %>%
   filter(count > 0) -> observed_aa
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
+add_rel_count <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(rel_count = count/max(count))
+  
+}
+
 observed_aa %>%
-  group_by(site) %>%
-  mutate(rel_count = count/max(count)) -> observed_aa
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa
 
 # log-transformed data
+add_ln_count <- function(protein_df) {
+  
+  protein_df %>% 
+    mutate(ln_count = log(rel_count))
+  
+}
+
 observed_aa %>%
-  mutate(ln_count = log(rel_count)) -> observed_aa 
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa
 
 # fit to a linear function, using map and BROOM 
 # SET INTERCEPT TO 0
-observed_aa %>% nest(-site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
-  select(-data, -fit) -> observed_fits
+fit_lm_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    select(-data, -fit)
+  
+}
 
-# number of observed amino acids at each site in the alignment
 observed_aa %>% 
-  group_by(site) %>%
-  mutate(obs_count = sum(count)) %>% 
-  select(site, obs_count) %>% distinct() -> align_count_bysite
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits
 
-align_count_bysite %>%
-  ggplot(aes(x = site, y = obs_count)) +
-  geom_point() +
-  ylab("observed count") +
-  theme(text = element_text(size = 35),
-        axis.text = element_text(size = 35)) 
-#ggsave("gaps.jpg")
+# added rel_count and ln_count to all aa
+ordered_count %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> ordered_count
 
-# estimate count
-no_gaps %>% 
-  left_join(observed_fits, by = "site") %>%
-  mutate(est_dist = exp(k*slope)) -> no_gaps
+ordered_count %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(ln_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = ln_count) -> ordered_count
+
+ordered_count %>% 
+  left_join(observed_fits, by = c("protein", "site")) %>%
+  mutate(est_dist = slope*exp(k*slope)) -> ordered_count
 
 # rescale to compare w raw count
-no_gaps %>%
-  group_by(site) %>%
-  mutate(est_rel = est_dist/sum(est_dist)) %>%
-  mutate(est_count = sum(count)*est_rel) -> no_gaps
+rescale_est_dist <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(est_rel = est_dist/sum(est_dist)) %>% 
+    mutate(est_count = sum(count)*est_rel)
+  
+}
 
+ordered_count %>%
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, est_dist)) %>% 
+  mutate(rescaled = map(data, rescale_est_dist)) %>% 
+  select(-data) %>% 
+  unnest(cols = rescaled) -> ordered_count
+
+
+# # number of observed amino acids at each site in the alignment
+# observed_aa %>% 
+#   group_by(site) %>%
+#   mutate(obs_count = sum(count)) %>% 
+#   select(site, obs_count) %>% distinct() -> align_count_bysite
+# 
+# align_count_bysite %>%
+#   ggplot(aes(x = site, y = obs_count)) +
+#   geom_point() +
+#   ylab("observed count") +
+#   theme(text = element_text(size = 35),
+#         axis.text = element_text(size = 35)) 
+# ggsave("gaps.jpg")
 
 ```
 
