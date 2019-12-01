@@ -359,6 +359,9 @@ df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff,
 Figure 3 
 ```{r, message=FALSE}
 
+gam_v_effaa %>%
+  extract(protein, "protein", "(.*)_", remove = T) -> gam_v_effaa
+
 ggplot(gam_v_effaa,
        aes(x = eff_aa, 
            y = 1/slope)) +
