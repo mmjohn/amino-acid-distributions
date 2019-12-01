@@ -24,35 +24,55 @@ library(ggtext)
 theme_set(theme_cowplot())
 ```
 
-Read in and reformat data - update
+Read in and reformat data 
 ```{r, message=FALSE}
 # read in all .csv files in /data/real/
 empirical_files <- dir("data/real", pattern = "*.mafft.processed.afa", full.names = T)
 
-
-
-
 # import alignment
-file_name <- "data/real/5PTP_A_rp35.mafft.processed.afa"
-fasta_file <- readAAStringSet(filename, format = "fasta")
-seq_name = names(fasta_file)
-aa_seq = paste(fasta_file)
-seq_num = seq(1:length(seq_name))
-real_align <- data.frame(seq_num, seq_name, aa_seq, 
-                         stringsAsFactors = F)
+import_alignment <- function(filename) {
+  
+  fasta_file <- readAAStringSet(filename, format = "fasta")
+  seq_name = names(fasta_file)
+  aa_seq = paste(fasta_file)
+  seq_num = seq(1:length(seq_name))
+  real_align <- data.frame(seq_num, aa_seq, stringsAsFactors = F)
+  
+  # change sequences from strings into character vectors
+  #as.data.frame(strsplit(real_align$aa_seq, split = ""), row.names = NULL) -> int_df
+  #as.data.frame(t(int_df), row.names = NULL) -> int_df
+  
+}
 
 # change sequences from strings into character vectors
-as.data.frame(strsplit(real_align$aa_seq, split = "")) -> int_df
-as.data.frame(t(int_df)) -> int_df
-row.names(int_df) <- NULL
-names(int_df) <- substring(names(int_df),2)
+aa_string_to_vect <- function(real_align) {
+
+  as.data.frame(strsplit(real_align$aa_seq, split = ""), row.names = NULL) -> int_df
+  as.data.frame(t(int_df), row.names = NULL) -> int_df
+  #row.names(int_df) <- NULL
+  #names(int_df) <- substring(names(int_df),2)
+
+}
 
 # tidy data frame
-int_df %>%
-  mutate(num_seq = seq(1:nrow(int_df))) -> int_df
-int_df %>%
-  gather(key = "site", value = "aa", 1:222) -> tidy_align
-tidy_align$site <- as.numeric(tidy_align$site)
+tidy_df <- function(int_df) {
+  int_df %>%
+    mutate(num_seq = seq(1:nrow(int_df))) %>% 
+    pivot_longer(-num_seq, names_to = "site_raw", values_to = "aa") -> int_df
+  int_df %>% 
+    extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
+}
+
+#import_alignment(empirical_files[1]) %>% View()
+tibble(filename = empirical_files) %>% 
+  extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
+  mutate(raw_data = map(filename, import_alignment),
+         long_data = map(raw_data, aa_string_to_vect),
+         tidy_data = map(long_data, tidy_df)) %>% 
+  select(-filename, -raw_data, -long_data) %>% 
+  unnest(cols = tidy_data) -> alignments
+
+alignments$site <- as.numeric(alignments$site)
 
 ```
 
