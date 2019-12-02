@@ -11,6 +11,171 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Relationship between $\lambda$ and $n_{eff}$ under a null model
 
-This is the RMarkdown document for the null models used to produce Figure 5. 
+This is the RMarkdown document for the null models used to produce Figure 5. One null model has amino acid data generated under an exponential distribution, while the other was simulated from a normal distribution.
+
+Load packages
+```{r, message=FALSE}
+library(tidyverse)
+library(stringr)
+library(cowplot)
+library(broom)
+library(ggtext)
+theme_set(theme_cowplot())
+
+```
+
+Generate data under an exponential and normal distribution
+```{r, message=FALSE}
+###### exponential ######
+# generate data into tidy_align df
+# correct method: multinomial with expo prob function
+# p(k)=ce^(-lambda*k)
+# rmultinom(10, 500, exp(-1*(0:19)))
+# range of lambda, range of eff n
+# 10 sites with 500 aa counts
+null_exp0 <- data.frame(t(rmultinom(10, 500, exp(-1*(0:19))))) 
+null_exp1 <- data.frame(t(rmultinom(10, 500, exp(-0.83*(0:19)))))
+null_exp2 <- data.frame(t(rmultinom(10, 500, exp(-0.75*(0:19)))))
+null_exp3 <- data.frame(t(rmultinom(10, 500, exp(-0.63*(0:19)))))
+null_exp4 <- data.frame(t(rmultinom(10, 500, exp(-0.5*(0:19)))))
+null_exp5 <- data.frame(t(rmultinom(10, 500, exp(-0.42*(0:19)))))
+null_exp6 <- data.frame(t(rmultinom(10, 500, exp(-0.35*(0:19)))))
+null_exp7 <- data.frame(t(rmultinom(10, 500, exp(-0.3*(0:19)))))
+null_exp8 <- data.frame(t(rmultinom(10, 500, exp(-0.25*(0:19)))))
+null_exp9 <- data.frame(t(rmultinom(10, 500, exp(-0.2*(0:19)))))
+null_exp10 <- data.frame(t(rmultinom(10, 500, exp(-0.15*(0:19)))))
+
+full_join(null_exp0, null_exp1) %>% full_join(., null_exp2) %>% 
+  full_join(., null_exp3) %>% full_join(., null_exp4) %>% 
+  full_join(., null_exp5) %>% full_join(., null_exp6) %>%
+  full_join(., null_exp7) %>% full_join(., null_exp8) %>% 
+  full_join(., null_exp9) %>% full_join(., null_exp10) -> null_exp
+
+# recreate all_count df (site, aa, count)
+null_exp %>% 
+  mutate(site = seq(1:nrow(null_exp))) %>% 
+  pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_exp
+
+###### normal dist ######
+null_nrm0 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.7)))) 
+null_nrm1 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.65))))
+null_nrm2 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.60))))
+null_nrm3 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.55))))
+null_nrm4 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.50))))
+null_nrm5 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.45))))
+null_nrm6 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.40))))
+null_nrm7 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.30))))
+null_nrm8 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.20))))
+null_nrm9 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.10))))
+null_nrm10 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.05))))
+
+full_join(null_nrm0, null_nrm1) %>% full_join(., null_nrm2) %>% 
+  full_join(., null_nrm3) %>% full_join(., null_nrm4) %>% 
+  full_join(., null_nrm5) %>% full_join(., null_nrm6) %>% 
+  full_join(., null_nrm7) %>% full_join(., null_nrm8) %>% 
+  full_join(., null_nrm9) %>% full_join(., null_nrm10) -> null_nrm
+
+null_nrm %>% 
+  mutate(site = seq(1:nrow(null_nrm))) %>% 
+  pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_nrm
+
+
+```
+
+
+Estimate distribution
+```{r}
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+all_count_exp %>%
+  arrange(all_count_exp$site, desc(count)) -> ordered_count_exp
+all_count_nrm %>%
+  arrange(all_count_nrm$site, desc(count)) -> ordered_count_nrm
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+ordered_count_exp %>%
+  group_by(site) %>%
+  mutate(k = as.numeric(1:20)) -> ordered_count_exp
+ordered_count_nrm %>%
+  group_by(site) %>%
+  mutate(k = as.numeric(1:20)) -> ordered_count_nrm
+
+# remove aa with zero values
+ordered_count_exp %>%
+  filter(count > 0) -> observed_aa_exp
+ordered_count_nrm %>%
+  filter(count > 0) -> observed_aa_nrm
+
+# count relative to most frequent - rescale to 1 for highly conserved sites
+observed_aa_exp %>%
+  group_by(site) %>%
+  mutate(rel_count = count/max(count)) -> observed_aa_exp
+observed_aa_nrm %>%
+  group_by(site) %>%
+  mutate(rel_count = count/max(count)) -> observed_aa_nrm
+
+# log-transformed data
+observed_aa_exp %>%
+  mutate(ln_count = log(rel_count)) -> observed_aa_exp 
+observed_aa_nrm %>%
+  mutate(ln_count = log(rel_count)) -> observed_aa_nrm 
+
+# fit to a linear function, using map and BROOM 
+# SET INTERCEPT TO 0
+observed_aa_exp %>% nest(-site) %>%
+  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
+         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+  select(-data, -fit) -> observed_fits_exp
+observed_aa_nrm %>% nest(-site) %>%
+  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
+         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+  select(-data, -fit) -> observed_fits_nrm
+
+ordered_count_exp %>% 
+  left_join(observed_fits_exp, by = "site") %>%
+  mutate(est_dist = exp(k*slope)) -> ordered_count_exp
+ordered_count_nrm %>% 
+  left_join(observed_fits_nrm, by = "site") %>%
+  mutate(est_dist = exp(k*slope)) -> ordered_count_nrm
+
+# rescale to compare w raw count
+ordered_count_exp %>%
+  group_by(site) %>%
+  mutate(est_rel = est_dist/sum(est_dist)) %>%
+  mutate(est_count = sum(count)*est_rel) -> ordered_count_exp
+ordered_count_nrm %>%
+  group_by(site) %>%
+  mutate(est_rel = est_dist/sum(est_dist)) %>%
+  mutate(est_count = sum(count)*est_rel) -> ordered_count_nrm
+
+
+```
+
+
+Chi-squared: null vs. estimated distribution
+```{r}
+
+```
+
+
+Effective number of amino acids
+```{r}
+
+```
+
+
+Relationship between $\lambda$ and $n_{eff}$
+```{r}
+
+```
+
+
+Figure 5
+```{r}
+
+```
+
 
 
