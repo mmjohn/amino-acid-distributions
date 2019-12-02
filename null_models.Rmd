@@ -156,12 +156,88 @@ ordered_count_nrm %>%
 
 Chi-squared: null vs. estimated distribution
 ```{r}
+# exponential
+ordered_count_exp %>% nest(-site) %>%
+  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+  select(-data) %>%
+  mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results_exp
+
+chisq_results_exp %>%
+  mutate(result = "pass") -> chisq_results_exp
+
+chisq_results_exp$result[chisq_results_exp$p.adjusted < 0.05] <- "fail"
+
+chisq_results_exp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_exp)
+
+# normal
+ordered_count_nrm %>% nest(-site) %>%
+  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+  select(-data) %>%
+  mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results_nrm
+
+chisq_results_nrm %>%
+  mutate(result = "pass") -> chisq_results_nrm
+
+chisq_results_nrm$result[chisq_results_nrm$p.adjusted < 0.05] <- "fail"
+
+chisq_results_nrm %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_nrm)
+
 
 ```
 
 
 Effective number of amino acids
 ```{r}
+# eff aa for actual distribution
+observed_aa_exp %>%
+  group_by(site) %>%
+  mutate(frequency = (count)/sum(count)) -> site_aa_freq_exp
+observed_aa_nrm %>%
+  group_by(site) %>%
+  mutate(frequency = (count)/sum(count)) -> site_aa_freq_nrm
+
+site_aa_freq_exp %>% 
+  mutate(flnf = frequency*log(frequency)) %>%
+  group_by(site) %>% 
+  summarize(entropy = -sum(flnf),
+            eff_aa = exp(entropy),
+            n = length(unique(aa))) -> eff_aa_all_exp
+site_aa_freq_nrm %>% 
+  mutate(flnf = frequency*log(frequency)) %>%
+  group_by(site) %>% 
+  summarize(entropy = -sum(flnf),
+            eff_aa = exp(entropy),
+            n = length(unique(aa))) -> eff_aa_all_nrm
+
+# eff aa for estimated distribution
+ordered_count_exp %>% 
+  group_by(site) %>%
+  mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2_exp
+site_aa_freq_2_exp %>% 
+  mutate(flnf = freq*log(freq)) %>%
+  group_by(site) %>%
+  summarize(entr = -sum(flnf),
+            eff_aa_est = exp(entr)) -> eff_aa_all_est_exp
+ordered_count_nrm %>% 
+  group_by(site) %>%
+  mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2_nrm
+site_aa_freq_2_nrm %>% 
+  mutate(flnf = freq*log(freq)) %>%
+  group_by(site) %>%
+  summarize(entr = -sum(flnf),
+            eff_aa_est = exp(entr)) -> eff_aa_all_est_nrm
+
+left_join(eff_aa_all_exp, eff_aa_all_est_exp) -> compare_eff_aa_exp
+left_join(eff_aa_all_nrm, eff_aa_all_est_nrm) -> compare_eff_aa_nrm
+
+# ggplot(compare_eff_aa_nrm, aes(x=eff_aa, y=eff_aa_est)) + 
+#   geom_point() +
+#   geom_abline(slope = 1, intercept = 0) + 
+#   #xlim(0,16) + 
+#   #ylim(0,16) + 
+#   labs(title = "Null model linear fit", x = "eff_aa actual", y = "eff_aa fit")
 
 ```
 
