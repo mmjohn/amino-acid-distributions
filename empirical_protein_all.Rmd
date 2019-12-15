@@ -27,7 +27,7 @@ theme_set(theme_cowplot())
 Read in and reformat data 
 ```{r, message=FALSE}
 # read in all .csv files in /data/real/
-empirical_files <- dir("data/real", pattern = "*.mafft.processed.afa", full.names = T)
+empirical_files <- dir("data/real", pattern = "*_Aligned_Sequences.fasta", full.names = T)
 
 # import alignment
 import_alignment <- function(filename) {
@@ -67,7 +67,15 @@ tibble(filename = empirical_files) %>%
   select(-filename, -raw_data, -long_data) %>% 
   unnest(cols = tidy_data) -> alignments
 
+# replace undefined aas
 alignments$site <- as.numeric(alignments$site)
+
+levels(alignments$aa) # "X" = any aa, "B" = N or D, "Z" = Q or D
+
+alignments$aa <- recode(alignments$aa, X = "-", B = "N", Z = "Q")
+
+levels(alignments$aa)
+
 alignments$aa <- as.character(alignments$aa)
 
 ```
@@ -368,7 +376,7 @@ df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff,
 ```
 
 
-Figure 4
+Supplementary Figure 1
 ```{r, message=FALSE}
 ggplot(gam_v_effaa,
        aes(x = eff_aa, 
@@ -396,10 +404,10 @@ ggplot(gam_v_effaa,
     legend.position = c(.9, .1),
     legend.justification = c(1, 0),
     legend.direction = "horizontal"
-  ) -> fig4
+  ) -> figs1
 
-fig4
-save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
+figs1
+save_plot("figures1.png", figs1, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```
