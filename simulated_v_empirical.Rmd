@@ -541,7 +541,92 @@ chisq_results_emp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_emp
 
 ```
 
+## Comparison across alignments
+Combine results
+```{r, message=FALSE}
+chisq_results_sim %>% 
+  mutate(result_sim = result) %>% 
+  select(protein, site, result_sim) -> chisq_results_sim
 
+chisq_results_emp %>% 
+  mutate(result_emp = result) %>% 
+  select(protein, site, result_emp) -> chisq_results_emp
+
+full_join(chisq_results_emp, chisq_results_sim) -> all_results
+
+all_results %>% 
+  pivot_longer(c(result_sim, result_emp), 
+               names_to = "alignment_type",
+               values_to = "result") -> all_results
+
+
+```
+
+Figure 4
+```{r}
+# based on code from: https://wilkelab.org/practicalgg/articles/bundestag_pie.html
+
+library(ggforce)
+
+summarize_results <- function(protein_df){
+  
+  protein_df %>% 
+    group_by(alignment_type, result) %>% 
+    summarize(count = n()) 
+  
+}
+
+all_results %>% 
+  nest(data = c(site, alignment_type, result)) %>% 
+  mutate(sum_result = map(data, summarize_results)) %>% 
+  select(-data) %>% 
+  unnest(sum_result) -> tidy_results
+
+tidy_results %>% 
+  group_by(protein, alignment_type) %>% 
+  arrange(count) %>%
+  mutate(
+    end_angle = 2*pi*cumsum(count)/sum(count),   # ending angle for each pie slice
+    start_angle = lag(end_angle, default = 0),   # starting angle for each pie slice
+    mid_angle = 0.5*(start_angle + end_angle),   # middle of each pie slice
+    hjust = ifelse(mid_angle > pi, 1, 0),
+    vjust = ifelse(mid_angle < pi/2 | mid_angle > 3*pi/2, 0, 1)
+  ) -> tidy_results
+
+rpie <- 1
+rlabel_out <- 1.05 * rpie
+rlabel_in <- 0.6 * rpie
+
+tidy_results$alignment_type <- recode(tidy_results$alignment_type, 
+                                      result_sim = "Simulated", 
+                                      result_emp = "Empirical")
+
+tidy_results %>% 
+  filter(protein == "1B4T_A") %>% 
+  ggplot() +
+  geom_arc_bar(
+    aes(
+      x0 = 0, y0 = 0, r0 = 0, r = rpie,
+      start = start_angle, end = end_angle, fill = result
+    ),
+    color = "white"
+  ) +
+  coord_fixed() +
+  facet_row(vars(alignment_type)) +
+  geom_text(
+    aes(
+      x = rlabel_in * sin(mid_angle),
+      y = rlabel_in * cos(mid_angle),
+      label = count
+    ),
+    size = 14/.pt, # use 14 pt font size
+    color = "black"
+  ) +
+  theme_map()
+
+
+
+```
 
 
 
