@@ -1,0 +1,547 @@
+---
+title: "Fit performance on simulated vs empirical alignments"
+author: "Mackenzie Johnson"
+date: "12/15/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysis of fitting procedures on simulated v empirical alignments
+This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results.
+
+
+```{r, message=FALSE}
+# load packages
+library(tidyverse)
+library(Biostrings)
+library(stringr)
+library(cowplot)
+library(broom)
+library(ggtext)
+theme_set(theme_cowplot())
+```
+
+
+## Simulated data
+Read in and reformat data
+```{r, message=FALSE}
+# read in all .csv files in /data/simulated/
+simulated_files <- dir("data/simulated", pattern = "*.csv", full.names = T)
+
+# tidy individual alignments
+tidy_alignments <- function(alignment) {
+  
+  alignment %>% 
+    mutate(sequence = as.numeric(1:nrow(alignment)) ) %>% 
+    gather(key = "site", value = "aa", 1:ncol(alignment)) %>%
+    mutate(site = as.numeric(site))
+
+}
+
+alignments_sim <- tibble(filename = simulated_files) %>%
+  extract(filename, "protein", "results_(.*)_evolved_split", remove = FALSE) %>%
+  mutate(
+    raw_data = map(filename, function(x) read_csv(x, col_types = cols(.default = "c"))),
+    alignment = map(raw_data, tidy_alignments)
+  ) %>%
+  select(-raw_data, -filename) %>%
+  unnest(cols = alignment)
+
+```
+
+
+Actual distribution
+```{r, message=FALSE}
+# determine the number of each AA at each site
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
+
+  }
+
+alignments_sim %>%
+  nest(data = c(sequence, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count_sim
+
+# add unobserved amino acids to counts
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P',
+                              'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+                       count = rep(0, 20))
+
+# 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
+count_zero_aa_site <- function(site_df) {
+  
+  site_df %>% 
+    group_by(aa) %>% 
+    summarize(count = n()) -> counts
+  full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
+}
+
+# 3. Apply to all proteins
+alignments_sim %>%
+  nest(data = c(sequence, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count_sim
+
+```
+
+
+Estimated distribution
+```{r, message=FALSE}
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
+all_count_sim %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count_sim
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(1:20))
+  
+}
+
+ordered_count_sim %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count_sim
+
+# remove aa with zero values
+ordered_count_sim %>%
+  filter(count > 0) -> observed_aa_sim
+
+# count relative to most frequent - rescale to 1 for highly conserved sites
+add_rel_count <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(rel_count = count/max(count))
+  
+}
+
+observed_aa_sim %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa_sim
+
+# log-transformed data
+add_ln_count <- function(protein_df) {
+  
+  protein_df %>% 
+    mutate(ln_count = log(rel_count))
+  
+}
+
+observed_aa_sim %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa_sim
+
+# fit to a linear function, using map and BROOM 
+# SET INTERCEPT TO 0
+
+fit_lm_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    select(-data, -fit)
+  
+}
+
+observed_aa_sim %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_sim
+
+# added rel_count and ln_count to all aa
+ordered_count_sim %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> ordered_count_sim
+
+ordered_count_sim %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(ln_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = ln_count) -> ordered_count_sim
+
+ordered_count_sim %>% 
+  left_join(observed_fits_sim, by = c("protein", "site")) %>%
+  mutate(est_dist = slope*exp(k*slope)) -> ordered_count_sim
+
+# rescale to compare w raw count
+rescale_est_dist <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(est_rel = est_dist/sum(est_dist)) %>% 
+    mutate(est_count = sum(count)*est_rel)
+  
+}
+
+ordered_count_sim %>%
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, est_dist)) %>% 
+  mutate(rescaled = map(data, rescale_est_dist)) %>% 
+  select(-data) %>% 
+  unnest(cols = rescaled) -> ordered_count_sim
+  
+  
+```
+
+
+Chi-squared test to compare distributions
+```{r, message=FALSE}
+# use raw count
+chi_square_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count, slope, 
+                  est_dist, est_rel,est_count)) %>% 
+    ungroup() %>% 
+    mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+    select(-data) %>% 
+    mutate(p.adjusted = p.adjust(p_value, method = "fdr"))
+  
+}
+
+ordered_count_sim %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, 
+                  est_dist, est_rel,est_count)) %>% 
+  mutate(chisq_results = map(data, chi_square_protein)) %>% 
+  select(-data) %>% 
+  unnest(chisq_results) -> chisq_results_sim
+
+
+chisq_results_sim %>%
+  mutate(result = "pass") -> chisq_results_sim
+
+# REMOVE conserved sites with a single aa
+chisq_results_sim %>% 
+  filter(p_value != "NaN") -> chisq_results_sim
+
+chisq_results_sim$result[chisq_results_sim$p.adjusted < 0.05] <- "fail"
+
+chisq_results_sim %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_sim)
+chisq_results_sim$chisq <- as.numeric(chisq_results_sim$chisq)
+
+
+
+```
+
+## Empirical data
+Read in and reformat data 
+```{r, message=FALSE}
+# read in all .csv files in /data/real/
+empirical_files <- dir("data/real", pattern = "*_Aligned_Sequences.fasta", full.names = T)
+
+# import alignment
+import_alignment <- function(filename) {
+  
+  fasta_file <- readAAStringSet(filename, format = "fasta")
+  seq_name = names(fasta_file)
+  aa_seq = paste(fasta_file)
+  seq_num = seq(1:length(seq_name))
+  real_align <- data.frame(seq_num, aa_seq, stringsAsFactors = F)
+  
+}
+
+# change sequences from strings into character vectors
+aa_string_to_vect <- function(real_align) {
+
+  as.data.frame(strsplit(real_align$aa_seq, split = ""), 
+                row.names = NULL) -> int_df
+  as.data.frame(t(int_df), row.names = NULL) -> int_df
+
+}
+
+# tidy data frame
+tidy_df <- function(int_df) {
+  int_df %>%
+    mutate(num_seq = seq(1:nrow(int_df))) %>% 
+    pivot_longer(-num_seq, names_to = "site_raw", values_to = "aa") -> int_df
+  int_df %>% 
+    extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
+}
+
+#import_alignment(empirical_files[1]) %>% View()
+tibble(filename = empirical_files) %>% 
+  extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
+  mutate(raw_data = map(filename, import_alignment),
+         long_data = map(raw_data, aa_string_to_vect),
+         tidy_data = map(long_data, tidy_df)) %>% 
+  select(-filename, -raw_data, -long_data) %>% 
+  unnest(cols = tidy_data) -> alignments_emp
+
+# replace undefined aas
+alignments_emp$site <- as.numeric(alignments_emp$site)
+
+levels(alignments_emp$aa) # "X" = any aa, "B" = N or D, "Z" = Q or D
+
+alignments_emp$aa <- recode(alignments_emp$aa, X = "-", B = "N", Z = "Q")
+
+levels(alignments_emp$aa)
+
+alignments_emp$aa <- as.character(alignments_emp$aa)
+
+```
+
+
+
+Actual distribution
+```{r, message=FALSE}
+# determine the number of each AA at each site
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
+
+  }
+
+alignments_emp %>%
+  nest(data = c(num_seq, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count_emp
+
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 
+                              'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+                           count = rep(0, 20))
+
+
+# 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
+count_zero_aa_site <- function(site_df) {
+  
+  site_df %>% 
+    group_by(aa) %>% 
+    summarize(count = n()) -> counts
+  full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
+}
+
+# 3. Apply to all proteins
+alignments_emp %>%
+  nest(data = c(num_seq, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count_emp
+
+```
+
+
+Estimated distribution 
+```{r, message=FALSE}
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
+all_count_emp %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count_emp
+
+# EXCLUDE all '-' entries/gaps in alignment
+ordered_count_emp %>%
+  filter(aa != "-") -> no_gaps_emp
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(1:20))
+  
+}
+
+no_gaps_emp %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count_emp
+
+# remove aa with zero values
+ordered_count_emp %>%
+  filter(count > 0) -> observed_aa_emp
+
+# count relative to most frequent - rescale to 1 for highly conserved sites
+add_rel_count <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(rel_count = count/max(count))
+  
+}
+
+observed_aa_emp %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa_emp
+
+# log-transformed data
+add_ln_count <- function(protein_df) {
+  
+  protein_df %>% 
+    mutate(ln_count = log(rel_count))
+  
+}
+
+observed_aa_emp %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa_emp
+
+# fit to a linear function, using map and BROOM 
+# SET INTERCEPT TO 0
+fit_lm_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    select(-data, -fit)
+  
+}
+
+observed_aa_emp %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_emp
+
+# added rel_count and ln_count to all aa
+ordered_count_emp %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> ordered_count_emp
+
+ordered_count_emp %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(ln_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = ln_count) -> ordered_count_emp
+
+ordered_count_emp %>% 
+  left_join(observed_fits_emp, by = c("protein", "site")) %>%
+  mutate(est_dist = slope*exp(k*slope)) -> ordered_count_emp
+
+# rescale to compare w raw count
+rescale_est_dist <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(est_rel = est_dist/sum(est_dist)) %>% 
+    mutate(est_count = sum(count)*est_rel)
+  
+}
+
+ordered_count_emp %>%
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, est_dist)) %>% 
+  mutate(rescaled = map(data, rescale_est_dist)) %>% 
+  select(-data) %>% 
+  unnest(cols = rescaled) -> ordered_count_emp
+
+```
+
+
+Chi-squared test to compare distributions
+```{r, message=FALSE}
+# use raw count
+chi_square_protein <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count, slope, 
+                  est_dist, est_rel,est_count)) %>% 
+    ungroup() %>% 
+    mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+           p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+    select(-data) %>% 
+    mutate(p.adjusted = p.adjust(p_value, method = "fdr"))
+  
+}
+
+ordered_count_emp %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, 
+                  est_dist, est_rel,est_count)) %>% 
+  mutate(chisq_results = map(data, chi_square_protein)) %>% 
+  select(-data) %>% 
+  unnest(chisq_results) -> chisq_results_emp
+
+chisq_results_emp %>%
+  mutate(result = "pass") -> chisq_results_emp
+
+chisq_results_emp$result[chisq_results_emp$p.adjusted < 0.05] <- "fail"
+
+# REMOVE conserved sites with a single aa
+chisq_results_emp %>% 
+  filter(p_value != "NaN") -> chisq_results_emp
+
+chisq_results_emp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_emp)
+
+
+```
+
+
+
+
+
