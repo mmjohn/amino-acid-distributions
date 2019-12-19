@@ -600,9 +600,11 @@ rlabel_in <- 0.6 * rpie
 tidy_results$alignment_type <- recode(tidy_results$alignment_type, 
                                       result_sim = "Simulated", 
                                       result_emp = "Empirical")
+tidy_results %>% 
+  extract(protein, "protein", "(.*)_", remove = T) -> tidy_results
 
 tidy_results %>% 
-  filter(protein == "1B4T_A") %>% 
+  filter(protein == "1B4T") %>% 
   ggplot() +
   geom_arc_bar(
     aes(
@@ -624,6 +626,66 @@ tidy_results %>%
   ) +
   theme_map()
 
+tidy_results %>% 
+  filter(protein == "1B4T" | protein == "1CI0" | protein == "1EFV" |
+           protein == "1G58" | protein == "1GV3") -> tidy_results1
+
+tidy_results %>% 
+  filter(protein == "2A84" | protein == "2AIU" | protein == "2BCG" |
+           protein == "2BR9" | protein == "2CFE") -> tidy_results2
+
+tidy_results1 %>% 
+  ggplot() +
+  geom_arc_bar(
+    aes(
+      x0 = 0, y0 = 0, r0 = 0, r = rpie,
+      start = start_angle, end = end_angle, fill = result
+    ),
+    color = "white"
+  ) +
+  coord_fixed() +
+  facet_grid(vars(alignment_type), 
+             vars(protein)) +
+  # geom_text(
+  #   aes(
+  #     x = rlabel_in * sin(mid_angle),
+  #     y = rlabel_in * cos(mid_angle),
+  #     label = count
+  #   ),
+  #   size = 14/.pt, # use 14 pt font size
+  #   color = "black"
+  # ) +
+  theme_map() +
+  theme(legend.position = "none") -> fig4a
+
+tidy_results2 %>% 
+  ggplot() +
+  geom_arc_bar(
+    aes(
+      x0 = 0, y0 = 0, r0 = 0, r = rpie,
+      start = start_angle, end = end_angle, fill = result
+    ),
+    color = "white"
+  ) +
+  coord_fixed() +
+  facet_grid(vars(alignment_type), 
+             vars(protein)) +
+  # geom_text(
+  #   aes(
+  #     x = rlabel_in * sin(mid_angle),
+  #     y = rlabel_in * cos(mid_angle),
+  #     label = count
+  #   ),
+  #   size = 14/.pt, # use 14 pt font size
+  #   color = "black"
+  # ) +
+  theme_map() +
+  theme(legend.position = "none") -> fig4b
+
+plot_grid(fig4a, fig4b, nrow = 2) -> fig4
+
+save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
+          base_asp = 1.618, base_width = NULL)
 
 
 ```
