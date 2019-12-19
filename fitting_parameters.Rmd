@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 This is the RMarkdown document used to produce Figure 6. It compares results for fitting distributions with a different number of parameters.
 
 Load necessary packages
-```{r}
+```{r, message=FALSE}
 library(tidyverse)
 library(stringr)
 library(cowplot)
@@ -292,18 +292,57 @@ left_join(eff_aa_all, eff_aa_est, by = "site") -> compare_eff_aa
 
 ```
 
+Find $R^2$ values for each parameter
+```{r,message=FALSE}
+
+rsq <- function (x, y) { cor(x, y) ^ 2 }
+
+compare_eff_aa %>% 
+  filter(parameters == 1 & !is.na(eff_aa_est)) -> compare_p1
+
+rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9552371
+
+compare_eff_aa %>% 
+  filter(parameters == 2 & !is.na(eff_aa_est)) -> compare_p2
+
+rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8203932
+
+compare_eff_aa %>% 
+  filter(parameters == 3 & !is.na(eff_aa_est)) -> compare_p3
+
+rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.7725455
+
+```
+
+
 
 Figure 6
 ```{r, message=FALSE}
+
+dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.9552371", 
+                                  "*R*<sup>2</sup> = 0.8203932", 
+                                  "*R*<sup>2</sup> = 0.7725455"),
+                        parameters = c(1, 2, 3),
+                        x = c(11.25, 11.25, 11.25),
+                        y = c(2, 2, 2))
+
+# compare_eff_aa %>% 
+#   mutate(label = case_when(parameters == 1 ~ "*R*<sup>2</sup> = 0.9552371",
+#                            parameters == 2 ~ "*R*<sup>2</sup> = 0.8203932",
+#                            parameters == 3 ~ "*R*<sup>2</sup> = 0.7725455")) -> compare_eff_aa
+
 ggplot(compare_eff_aa, 
        aes(x=eff_aa, y=eff_aa_est)) + 
   geom_point() +
   geom_abline(slope = 1, intercept = 0) + 
-  facet_grid(vars(parameters)) +
-  #xlim(0,16) + 
-  #ylim(0,16) + 
   labs(x = "*n*<sub>eff</sub> of actual distribution", 
        y = "*n*<sub>eff</sub> of fit distribution") +
+  #geom_richtext(data = dat_text, aes(label = label)) #+
+  geom_richtext(data = dat_text, 
+                aes(x = x, y = y,label = label),
+                label.color = NA,
+                inherit.aes = FALSE) +
+  facet_grid(vars(parameters)) + 
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
   background_grid() +
