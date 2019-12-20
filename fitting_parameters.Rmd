@@ -233,10 +233,24 @@ chisq_results %>%
 
 chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
-#chisq_results %>% filter(result == "fail") %>% nrow()/nrow(chisq_results)
-#chisq_results$chisq <- as.numeric(chisq_results$chisq)
+```
+
+Chi-squared results based on number of parameters used
+```{r, message=FALSE}
+# 124 sites; 105 fail (84.7%)
+chisq_results %>% 
+  filter(parameters == 1 & result == "fail") %>% nrow()
+
+# 124 sites; 83 fail (66.9%)
+chisq_results %>% 
+  filter(parameters == 2 & result == "fail") %>% nrow()
+
+# 153 sites; 144 fail (94.1%)
+chisq_results %>% 
+  filter(parameters == 3 & result == "fail") %>% nrow()
 
 ```
+
 
 
 Effective number of amino acids
