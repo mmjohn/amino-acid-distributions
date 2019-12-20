@@ -122,12 +122,14 @@ observed_aa_nrm %>%
 
 # fit to a linear function, using map and BROOM 
 # SET INTERCEPT TO 0
-observed_aa_exp %>% nest(-site) %>%
+observed_aa_exp %>% 
+  nest(data = c(aa, count, k, rel_count, ln_count)) %>%
   mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
          #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
          slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
   select(-data, -fit) -> observed_fits_exp
-observed_aa_nrm %>% nest(-site) %>%
+observed_aa_nrm %>% 
+  nest(data = c(aa, count, k, rel_count, ln_count)) %>%
   mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
          #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
          slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
@@ -157,7 +159,8 @@ ordered_count_nrm %>%
 Chi-squared: null vs. estimated distribution
 ```{r}
 # exponential
-ordered_count_exp %>% nest(-site) %>%
+ordered_count_exp %>% 
+  nest(data = c(aa, count, k, slope, est_dist, est_rel, est_count)) %>%
   mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
          p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
   select(-data) %>%
@@ -171,7 +174,8 @@ chisq_results_exp$result[chisq_results_exp$p.adjusted < 0.05] <- "fail"
 chisq_results_exp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_exp)
 
 # normal
-ordered_count_nrm %>% nest(-site) %>%
+ordered_count_nrm %>% 
+  nest(data = c(aa, count, k, slope, est_dist, est_rel, est_count)) %>%
   mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
          p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
   select(-data) %>%
