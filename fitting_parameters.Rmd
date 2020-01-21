@@ -333,9 +333,13 @@ rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.7725455
 Figure 6
 ```{r, message=FALSE}
 
-dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.9552371", 
-                                  "*R*<sup>2</sup> = 0.8203932", 
-                                  "*R*<sup>2</sup> = 0.7725455"),
+signif(0.9552371, digits = 3)
+signif(0.8203932, digits = 3)
+signif(0.7725455, digits = 3)
+
+dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.955", 
+                                  "*R*<sup>2</sup> = 0.820", 
+                                  "*R*<sup>2</sup> = 0.772"),
                         parameters = c(1, 2, 3),
                         x = c(11.25, 11.25, 11.25),
                         y = c(2, 2, 2))
