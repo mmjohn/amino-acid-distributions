@@ -245,16 +245,25 @@ Figure 2
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, y = 1/slope)) + 
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory2, 
-            aes(ne, lambda_inv), 
-            inherit.aes = FALSE, 
-            size = 1) +
-  geom_vline(xintercept = 1, 
-             linetype =2) +
-  labs(x = "*n*<sub>eff</sub>", 
-       y = expression(~lambda^-1)) +
-  theme(legend.position = "none",
-        axis.title.x = element_markdown()) +
+  geom_line(
+    data = df_theory2, 
+    aes(ne, lambda_inv), 
+    inherit.aes = FALSE, 
+    size = 1
+  ) +
+  geom_vline(
+    xintercept = 1, 
+    linetype = 2
+  ) +
+  labs(
+    x = "Effective number of amino acids *n*<sub>eff</sub>", 
+    y = "Fitting parameter &lambda;<sup>-1</sup>"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown()
+  ) +
   scale_x_continuous(
     breaks = c(0,5,10,15), 
     limits = c(0,17), 
@@ -267,7 +276,7 @@ ggplot(gam_v_effaa,
   coord_cartesian(clip = "off") -> fig2
 
 fig2
-save_plot("figure2.pdf", fig2, ncol = 1, nrow = 1, base_height = 3.71,
+save_plot("figure2.png", fig2, ncol = 1, nrow = 1, base_height = 3.71,
           base_asp = 1.618, base_width = NULL)
 
 ```
