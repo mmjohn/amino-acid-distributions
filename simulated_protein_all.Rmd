@@ -270,7 +270,7 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 ```
 
 
-Effective number of amino acids - updated; fix eff_aa_est
+Effective number of amino acids
 ```{r, message=FALSE}
 # site_aa_count is actual dist. DOES NOT CONTAIN AA AT ZERO
 
@@ -319,16 +319,6 @@ ordered_count %>%
 site_aa_freq_est %>%
   mutate(flnf = frequency*log(frequency)) -> site_aa_freq_est
 
-# # NOT WORKING - FIX FOR OTHER FIG
-# site_aa_freq_est %>% 
-#   nest(data = c(site, aa, count, k, rel_count, ln_count, slope, 
-#                 est_dist, est_rel, est_count, frequency, flnf)) %>% 
-#   mutate(eff_aa = map(data, add_eff_aa)) %>% 
-#   select(-data) %>% 
-#   unnest(cols = eff_aa) -> eff_aa_est
-# 
-
-#left_join(eff_aa_all, eff_aa_all_est) -> compare_eff_aa
 
 ```
 
@@ -362,6 +352,9 @@ Figure 3
 gam_v_effaa %>%
   extract(protein, "protein", "(.*)_", remove = T) -> gam_v_effaa
 
+gam_v_effaa %>% 
+  filter(!is.na(result)) -> gam_v_effaa # remove sites that are conserved for one aa
+
 ggplot(gam_v_effaa,
        aes(x = eff_aa, 
            y = 1/slope)) +
@@ -376,6 +369,9 @@ ggplot(gam_v_effaa,
     #y = expression(~lambda^-1)
     y = "Fitting parameter &lambda;<sup>-1</sup>",
     color = "Result"
+  ) +
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
   ) +
   scale_y_continuous(limits = c(-15, 2), expand = c(0, 0)) +
   theme_cowplot(12, rel_small = 1) +

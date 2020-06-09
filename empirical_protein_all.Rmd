@@ -378,6 +378,9 @@ df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff,
 
 Supplementary Figure 1
 ```{r, message=FALSE}
+gam_v_effaa %>% 
+  filter(!is.na(result)) -> gam_v_effaa # remove sites conserved for one aa
+
 ggplot(gam_v_effaa,
        aes(x = eff_aa, 
            y = 1/slope)) +
@@ -392,6 +395,9 @@ ggplot(gam_v_effaa,
     #y = expression(~lambda^-1)
     y = "Fitting parameter &lambda;<sup>-1</sup>",
     color = "Result"
+  ) +
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
   ) +
   scale_y_continuous(limits = c(-15, 2), expand = c(0, 0)) +
   theme_cowplot(12, rel_small = 1) +

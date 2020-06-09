@@ -272,6 +272,9 @@ ggplot(gam_v_effaa,
   scale_y_continuous(
     limits = c(-10,0.1), 
     expand = c(0,0)
+  ) + 
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
   ) +
   coord_cartesian(clip = "off") -> fig2
 
