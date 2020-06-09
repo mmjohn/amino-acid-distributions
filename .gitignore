@@ -1,6 +1,7 @@
 # History files
 .Rhistory
 .Rapp.history
+.DS_Store
 
 # Session Data files
 .RData
@@ -35,3 +36,11 @@ vignettes/*.pdf
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
 .Rproj.user
+
+# RMarkdown output files
+*.html
+
+# Old files and unused data
+old_code_figures/
+data/evol_sim_vs_rosetta-master/
+data/real/old/
