@@ -603,6 +603,10 @@ tidy_results$alignment_type <- recode(tidy_results$alignment_type,
 tidy_results %>% 
   extract(protein, "protein", "(.*)_", remove = T) -> tidy_results
 
+tidy_results$result %>% 
+  replace_na("NA") -> tidy_results$result
+myfillcolors <- c("fail" = "#E69F00", "pass" = "#0072B2", "NA" = "#999999")
+
 tidy_results %>% 
   filter(protein == "1B4T") %>% 
   ggplot() +
@@ -624,7 +628,8 @@ tidy_results %>%
     size = 14/.pt, # use 14 pt font size
     color = "black"
   ) +
-  theme_map()
+  theme_map() +
+  scale_fill_manual(values = myfillcolors)
 
 tidy_results %>% 
   filter(protein == "1B4T" | protein == "1CI0" | protein == "1EFV" |
@@ -643,6 +648,7 @@ tidy_results1 %>%
     ),
     color = "white"
   ) +
+  scale_fill_manual(values = myfillcolors) +
   coord_fixed() +
   facet_grid(vars(alignment_type), 
              vars(protein)) +
@@ -667,6 +673,7 @@ tidy_results2 %>%
     ),
     color = "white"
   ) +
+  scale_fill_manual(values = myfillcolors) +
   coord_fixed() +
   facet_grid(vars(alignment_type), 
              vars(protein)) +
@@ -683,6 +690,8 @@ tidy_results2 %>%
   theme(legend.position = "none") -> fig4b
 
 plot_grid(fig4a, fig4b, nrow = 2) -> fig4
+
+fig4
 
 save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
