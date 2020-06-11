@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Analysis of fitting procedures on simulated v empirical alignments
-This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results. Additionally examines effects of larger sample size in simulated alignments.
+This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4 and Supplementary Figure 2. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results. Additionally examines effects of larger sample size in simulated alignments.
 
 
 ```{r, message=FALSE}
@@ -758,7 +758,8 @@ all_results %>%
 
 tidy_results %>% 
   group_by(protein, alignment_type) %>% 
-  arrange(count) %>%
+  #arrange(count) %>%
+  arrange(result) %>% 
   mutate(
     end_angle = 2*pi*cumsum(count)/sum(count),   # ending angle for each pie slice
     start_angle = lag(end_angle, default = 0),   # starting angle for each pie slice
@@ -772,7 +773,7 @@ rlabel_out <- 1.05 * rpie
 rlabel_in <- 0.6 * rpie
 
 tidy_results$alignment_type <- recode(tidy_results$alignment_type, 
-                                      result_sim = "Simulated (500)", 
+                                      result_sim = "Simulated (all)", 
                                       result_emp = "Empirical",
                                       result_sim_partial = "Simulated")
 tidy_results %>% 
@@ -827,15 +828,6 @@ tidy_results1 %>%
   coord_fixed() +
   facet_grid(vars(alignment_type), 
              vars(protein)) +
-  # geom_text(
-  #   aes(
-  #     x = rlabel_in * sin(mid_angle),
-  #     y = rlabel_in * cos(mid_angle),
-  #     label = count
-  #   ),
-  #   size = 14/.pt, # use 14 pt font size
-  #   color = "black"
-  # ) +
   theme_map() +
   labs(fill = "Result") +
   theme(legend.position = "bottom") -> fig4
@@ -858,15 +850,6 @@ tidy_results2 %>%
   coord_fixed() +
   facet_grid(vars(alignment_type), 
              vars(protein)) +
-  # geom_text(
-  #   aes(
-  #     x = rlabel_in * sin(mid_angle),
-  #     y = rlabel_in * cos(mid_angle),
-  #     label = count
-  #   ),
-  #   size = 14/.pt, # use 14 pt font size
-  #   color = "black"
-  # ) +
   theme_map() +
   labs(fill = "Result") +
   theme(legend.position = "bottom") -> figs2
