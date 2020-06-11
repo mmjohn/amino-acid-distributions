@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Analysis of fitting procedures on simulated v empirical alignments
-This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results.
+This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results. Additionally examines effects of larger sample size in simulated alignments.
 
 
 ```{r, message=FALSE}
@@ -52,8 +52,55 @@ alignments_sim <- tibble(filename = simulated_files) %>%
 
 ```
 
+Sample simulated sequences to match the number of empirical sequences for each protein
+```{r}
+# 1B4T - 160
+alignments_sim %>% 
+  filter(protein == "1B4T_A" & (sequence <= 1 | sequence < 161)) -> pro1
+# 1CI0 - 87
+alignments_sim %>% 
+  filter(protein == "1CI0_A" & (sequence <= 1 | sequence < 88)) -> pro2
+# 1EFV - 84
+alignments_sim %>% 
+  filter(protein == "1EFV_B" & (sequence <= 1 | sequence < 85)) -> pro3
+# 1G58 - 211
+alignments_sim %>% 
+  filter(protein == "1G58_B" & (sequence <= 1 | sequence < 212)) -> pro4
+# 1GV3 - 181
+alignments_sim %>% 
+  filter(protein == "1GV3_A" & (sequence <= 1 | sequence < 182)) -> pro5
+# 2A84 - 125
+alignments_sim %>% 
+  filter(protein == "2A84_A" & (sequence <= 1 | sequence < 126)) -> pro6
+# 2AIU - 73
+alignments_sim %>% 
+  filter(protein == "2AIU_A" & (sequence <= 1 | sequence < 74)) -> pro7
+# 2BCG - 168
+alignments_sim %>% 
+  filter(protein == "2BCG_Y" & (sequence <= 1 | sequence < 169)) -> pro8
+# 2BR9 - 96
+alignments_sim %>% 
+  filter(protein == "2BR9_A" & (sequence <= 1 | sequence < 97)) -> pro9
+# 2CFE - 312
+alignments_sim %>% 
+  filter(protein == "2CFE_A" & (sequence <= 1 | sequence < 312)) -> pro10
 
-Actual distribution
+full_join(pro1, pro2) %>% 
+  full_join(., pro3) %>% 
+  full_join(., pro4) %>% 
+  full_join(., pro5) %>% 
+  full_join(., pro6) %>% 
+  full_join(., pro7) %>% 
+  full_join(., pro8) %>% 
+  full_join(., pro9) %>% 
+  full_join(., pro10) -> alignments_sim_partial
+
+rm(pro1, pro2, pro3, pro4, pro5, pro6, pro7, pro8, pro9, pro10)
+```
+
+
+
+Actual distribution - all
 ```{r, message=FALSE}
 # determine the number of each AA at each site
 count_aa <- function(protein_alignment) {
@@ -106,7 +153,26 @@ alignments_sim %>%
 ```
 
 
-Estimated distribution
+Actual distribution - partial
+```{r, message=FALSE}
+# determine the number of each AA at each site
+alignments_sim_partial %>%
+  nest(data = c(sequence, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count_sim_partial
+
+# add unobserved amino acids to counts
+alignments_sim_partial %>%
+  nest(data = c(sequence, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count_sim_partial
+
+```
+
+
+Estimated distribution - all
 ```{r, message=FALSE}
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
@@ -228,7 +294,79 @@ ordered_count_sim %>%
 ```
 
 
-Chi-squared test to compare distributions
+
+Estimated distribution - partial
+```{r, message=FALSE}
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+all_count_sim_partial %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count_sim_partial
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+ordered_count_sim_partial %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count_sim_partial
+
+# remove aa with zero values
+ordered_count_sim_partial %>%
+  filter(count > 0) -> observed_aa_sim_partial
+
+# count relative to most frequent - rescale to 1 for highly conserved sites
+observed_aa_sim_partial %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa_sim_partial
+
+# log-transformed data
+observed_aa_sim_partial %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa_sim_partial
+
+# fit to a linear function, using map and BROOM 
+# SET INTERCEPT TO 0
+observed_aa_sim_partial %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_sim_partial
+
+# added rel_count and ln_count to all aa
+ordered_count_sim_partial %>%
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> ordered_count_sim_partial
+
+ordered_count_sim_partial %>%
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(ln_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = ln_count) -> ordered_count_sim_partial
+
+ordered_count_sim_partial %>% 
+  left_join(observed_fits_sim, by = c("protein", "site")) %>%
+  mutate(est_dist = slope*exp(k*slope)) -> ordered_count_sim_partial
+
+# rescale to compare w raw count
+ordered_count_sim_partial %>%
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, est_dist)) %>% 
+  mutate(rescaled = map(data, rescale_est_dist)) %>% 
+  select(-data) %>% 
+  unnest(cols = rescaled) -> ordered_count_sim_partial
+  
+  
+```
+
+
+Chi-squared test to compare distributions - all
 ```{r, message=FALSE}
 # use raw count
 chi_square_protein <- function(protein_df) {
@@ -267,6 +405,37 @@ chisq_results_sim$chisq <- as.numeric(chisq_results_sim$chisq)
 
 
 ```
+
+
+Chi-squared test to compare distributions - partial
+```{r, message=FALSE}
+# use raw count
+ordered_count_sim_partial %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, 
+                  est_dist, est_rel,est_count)) %>% 
+  mutate(chisq_results = map(data, chi_square_protein)) %>% 
+  select(-data) %>% 
+  unnest(chisq_results) -> chisq_results_sim_partial
+
+
+chisq_results_sim_partial %>%
+  mutate(result = "pass") -> chisq_results_sim_partial
+
+# REMOVE conserved sites with a single aa
+chisq_results_sim_partial %>% 
+  filter(p_value != "NaN") -> chisq_results_sim_partial
+
+chisq_results_sim_partial$result[chisq_results_sim_partial$p.adjusted < 0.05] <- "fail"
+
+chisq_results_sim_partial %>% 
+  filter(result == "fail") %>% 
+  nrow()/nrow(chisq_results_sim_partial)
+chisq_results_sim_partial$chisq <- as.numeric(chisq_results_sim_partial$chisq)
+
+
+
+```
+
 
 ## Empirical data
 Read in and reformat data 
@@ -548,14 +717,19 @@ chisq_results_sim %>%
   mutate(result_sim = result) %>% 
   select(protein, site, result_sim) -> chisq_results_sim
 
+chisq_results_sim_partial %>% 
+  mutate(result_sim_partial = result) %>% 
+  select(protein, site, result_sim_partial) -> chisq_results_sim_partial
+
 chisq_results_emp %>% 
   mutate(result_emp = result) %>% 
   select(protein, site, result_emp) -> chisq_results_emp
 
-full_join(chisq_results_emp, chisq_results_sim) -> all_results
+full_join(chisq_results_emp, chisq_results_sim) %>% 
+  full_join(., chisq_results_sim_partial) -> all_results
 
 all_results %>% 
-  pivot_longer(c(result_sim, result_emp), 
+  pivot_longer(c(result_sim, result_emp, result_sim_partial), 
                names_to = "alignment_type",
                values_to = "result") -> all_results
 
@@ -598,8 +772,9 @@ rlabel_out <- 1.05 * rpie
 rlabel_in <- 0.6 * rpie
 
 tidy_results$alignment_type <- recode(tidy_results$alignment_type, 
-                                      result_sim = "Simulated", 
-                                      result_emp = "Empirical")
+                                      result_sim = "Simulated (500)", 
+                                      result_emp = "Empirical",
+                                      result_sim_partial = "Simulated")
 tidy_results %>% 
   extract(protein, "protein", "(.*)_", remove = T) -> tidy_results
 
@@ -662,7 +837,13 @@ tidy_results1 %>%
   #   color = "black"
   # ) +
   theme_map() +
-  theme(legend.position = "none") -> fig4a
+  labs(fill = "Result") +
+  theme(legend.position = "bottom") -> fig4
+
+fig4
+
+save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
+          base_asp = 1.618, base_width = NULL)
 
 tidy_results2 %>% 
   ggplot() +
@@ -687,13 +868,14 @@ tidy_results2 %>%
   #   color = "black"
   # ) +
   theme_map() +
-  theme(legend.position = "none") -> fig4b
+  labs(fill = "Result") +
+  theme(legend.position = "bottom") -> figs2
 
-plot_grid(fig4a, fig4b, nrow = 2) -> fig4
+#plot_grid(fig4a, fig4b, nrow = 2) -> fig4
 
-fig4
+figs2
 
-save_plot("figure4.png", fig4, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures2.png", figs2, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 
