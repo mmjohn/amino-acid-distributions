@@ -56,34 +56,73 @@ Sample simulated sequences to match the number of empirical sequences for each p
 ```{r}
 # 1B4T - 160
 alignments_sim %>% 
-  filter(protein == "1B4T_A" & (sequence <= 1 | sequence < 161)) -> pro1
+  filter(protein == "1B4T_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(160) %>% 
+  unnest(data) -> pro1
+  
 # 1CI0 - 87
 alignments_sim %>% 
-  filter(protein == "1CI0_A" & (sequence <= 1 | sequence < 88)) -> pro2
+  filter(protein == "1CI0_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(87) %>% 
+  unnest(data) -> pro2
+
 # 1EFV - 84
 alignments_sim %>% 
-  filter(protein == "1EFV_B" & (sequence <= 1 | sequence < 85)) -> pro3
+  filter(protein == "1EFV_B") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(84) %>% 
+  unnest(data) -> pro3
+
 # 1G58 - 211
 alignments_sim %>% 
-  filter(protein == "1G58_B" & (sequence <= 1 | sequence < 212)) -> pro4
+  filter(protein == "1G58_B") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(211) %>% 
+  unnest(data) -> pro4
+
 # 1GV3 - 181
 alignments_sim %>% 
-  filter(protein == "1GV3_A" & (sequence <= 1 | sequence < 182)) -> pro5
+  filter(protein == "1GV3_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(181) %>% 
+  unnest(data) -> pro5
+
 # 2A84 - 125
 alignments_sim %>% 
-  filter(protein == "2A84_A" & (sequence <= 1 | sequence < 126)) -> pro6
+  filter(protein == "2A84_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(125) %>% 
+  unnest(data) -> pro6
+
 # 2AIU - 73
 alignments_sim %>% 
-  filter(protein == "2AIU_A" & (sequence <= 1 | sequence < 74)) -> pro7
+  filter(protein == "2AIU_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(73) %>% 
+  unnest(data) -> pro7
+
 # 2BCG - 168
 alignments_sim %>% 
-  filter(protein == "2BCG_Y" & (sequence <= 1 | sequence < 169)) -> pro8
+  filter(protein == "2BCG_Y") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(168) %>% 
+  unnest(data) -> pro8
+
 # 2BR9 - 96
 alignments_sim %>% 
-  filter(protein == "2BR9_A" & (sequence <= 1 | sequence < 97)) -> pro9
+  filter(protein == "2BR9_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(96) %>% 
+  unnest(data) -> pro9
+
 # 2CFE - 312
 alignments_sim %>% 
-  filter(protein == "2CFE_A" & (sequence <= 1 | sequence < 312)) -> pro10
+  filter(protein == "2CFE_A") %>% 
+  nest(data = c(site, aa)) %>% 
+  sample_n(312) %>% 
+  unnest(data) -> pro10
 
 full_join(pro1, pro2) %>% 
   full_join(., pro3) %>% 
