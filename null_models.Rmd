@@ -51,29 +51,39 @@ full_join(null_exp0, null_exp1) %>% full_join(., null_exp2) %>%
   full_join(., null_exp7) %>% full_join(., null_exp8) %>% 
   full_join(., null_exp9) %>% full_join(., null_exp10) -> null_exp
 
+rm(null_exp0, null_exp1, null_exp2, null_exp3, null_exp4, null_exp5,
+   null_exp6, null_exp7, null_exp8, null_exp9, null_exp10)
+
 # recreate all_count df (site, aa, count)
 null_exp %>% 
   mutate(site = seq(1:nrow(null_exp))) %>% 
   pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_exp
 
 ###### normal dist ######
-null_nrm0 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.7)))) 
-null_nrm1 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.65))))
-null_nrm2 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.60))))
-null_nrm3 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.55))))
-null_nrm4 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.50))))
-null_nrm5 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.45))))
-null_nrm6 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.40))))
-null_nrm7 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.30))))
-null_nrm8 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.20))))
-null_nrm9 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.10))))
-null_nrm10 <- data.frame(t(rmultinom(10, 500, rnorm(20, mean = 1, sd = 0.05))))
+# correct method: multinomial with normal prob function
+# p(k)=ce^(-(k-10)^2/(sigma^2))
+# range of sigman, range of neff
+# 10 sites with 500 aa counts
+null_nrm0 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(0.5^2))))) 
+null_nrm1 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(1^2)))))
+null_nrm2 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(1.5^2)))))
+null_nrm3 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(2.5^2)))))
+null_nrm4 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(3.5^2)))))
+null_nrm5 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(5^2)))))
+null_nrm6 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(7^2)))))
+null_nrm7 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(9^2)))))
+null_nrm8 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(11.5^2)))))
+null_nrm9 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(13.5^2)))))
+null_nrm10 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(15^2)))))
 
 full_join(null_nrm0, null_nrm1) %>% full_join(., null_nrm2) %>% 
   full_join(., null_nrm3) %>% full_join(., null_nrm4) %>% 
   full_join(., null_nrm5) %>% full_join(., null_nrm6) %>% 
   full_join(., null_nrm7) %>% full_join(., null_nrm8) %>% 
   full_join(., null_nrm9) %>% full_join(., null_nrm10) -> null_nrm
+
+rm(null_nrm0, null_nrm1, null_nrm2, null_nrm3, null_nrm4, null_nrm5,
+   null_nrm6, null_nrm7, null_nrm8, null_nrm9, null_nrm10)
 
 null_nrm %>% 
   mutate(site = seq(1:nrow(null_nrm))) %>% 
@@ -303,6 +313,9 @@ ggplot(gam_v_effaa,
   labs(x = "Effective number of amino acids *n*<sub>eff</sub>", 
        y = "Fitting parameter &lambda;<sup>-1</sup>",
        color = "Result") +
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
+  ) +
   #scale_y_continuous(limits = c(-15, 2), expand = c(0, 0)) +
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
