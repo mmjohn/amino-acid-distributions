@@ -84,7 +84,7 @@ all_count %>%
 # make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
 ordered_count %>%
   group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> ordered_count
+  mutate(k = as.numeric(0:19)) -> ordered_count
 
 # remove aa with zero values
 ordered_count %>%
@@ -237,7 +237,7 @@ chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 Chi-squared results based on number of parameters used
 ```{r, message=FALSE}
-# 124 sites; 105 fail (84.7%)
+# 124 sites; 71 fail (57.3%)
 chisq_results %>% 
   filter(parameters == 1 & result == "fail") %>% nrow()
 
@@ -314,7 +314,7 @@ rsq <- function (x, y) { cor(x, y) ^ 2 }
 compare_eff_aa %>% 
   filter(parameters == 1 & !is.na(eff_aa_est)) -> compare_p1
 
-rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9552371
+rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9698161
 
 compare_eff_aa %>% 
   filter(parameters == 2 & !is.na(eff_aa_est)) -> compare_p2
@@ -333,11 +333,11 @@ rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.7725455
 Figure 6
 ```{r, message=FALSE}
 
-signif(0.9552371, digits = 3)
+signif(0.9698161, digits = 3)
 signif(0.8203932, digits = 3)
 signif(0.7725455, digits = 3)
 
-dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.955", 
+dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.970", 
                                   "*R*<sup>2</sup> = 0.820", 
                                   "*R*<sup>2</sup> = 0.772"),
                         parameters = c(1, 2, 3),

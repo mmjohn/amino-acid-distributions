@@ -130,7 +130,8 @@ number_aa <- function(protein_df) {
   
   protein_df %>% 
     group_by(site) %>% 
-    mutate(k = as.numeric(1:20))
+    mutate(k = as.numeric(0:19))
+    #mutate(k = as.numeric(1:20))
   
 }
 
@@ -357,10 +358,10 @@ gam_v_effaa %>%
 
 ggplot(gam_v_effaa,
        aes(x = eff_aa, 
-           y = 1/slope)) +
+           y = -1/slope)) +
   geom_point(aes(color = result)) +
   geom_line(data = df_theory,
-            aes(ne, lambda_inv),
+            aes(ne, -1*lambda_inv),
             inherit.aes = FALSE,
             size = 1) +
   facet_wrap(vars(protein)) +
@@ -373,7 +374,7 @@ ggplot(gam_v_effaa,
   scale_color_manual(
     values = c("#E69F00", "#0072B2")
   ) +
-  scale_y_continuous(limits = c(-15, 2), expand = c(0, 0)) +
+  scale_y_continuous(limits = c(-0.5, 10), expand = c(0, 0)) +
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
   background_grid() +

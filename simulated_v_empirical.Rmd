@@ -234,7 +234,7 @@ number_aa <- function(protein_df) {
   
   protein_df %>% 
     group_by(site) %>% 
-    mutate(k = as.numeric(1:20))
+    mutate(k = as.numeric(0:19))
   
 }
 
@@ -615,7 +615,7 @@ number_aa <- function(protein_df) {
   
   protein_df %>% 
     group_by(site) %>% 
-    mutate(k = as.numeric(1:20))
+    mutate(k = as.numeric(0:19))
   
 }
 
@@ -822,29 +822,29 @@ tidy_results$result %>%
   replace_na("NA") -> tidy_results$result
 myfillcolors <- c("fail" = "#E69F00", "pass" = "#0072B2", "NA" = "#999999")
 
-tidy_results %>% 
-  filter(protein == "1B4T") %>% 
-  ggplot() +
-  geom_arc_bar(
-    aes(
-      x0 = 0, y0 = 0, r0 = 0, r = rpie,
-      start = start_angle, end = end_angle, fill = result
-    ),
-    color = "white"
-  ) +
-  coord_fixed() +
-  facet_row(vars(alignment_type)) +
-  geom_text(
-    aes(
-      x = rlabel_in * sin(mid_angle),
-      y = rlabel_in * cos(mid_angle),
-      label = count
-    ),
-    size = 14/.pt, # use 14 pt font size
-    color = "black"
-  ) +
-  theme_map() +
-  scale_fill_manual(values = myfillcolors)
+# tidy_results %>% 
+#   filter(protein == "1B4T") %>% 
+#   ggplot() +
+#   geom_arc_bar(
+#     aes(
+#       x0 = 0, y0 = 0, r0 = 0, r = rpie,
+#       start = start_angle, end = end_angle, fill = result
+#     ),
+#     color = "white"
+#   ) +
+#   coord_fixed() +
+#   facet_row(vars(alignment_type)) +
+#   geom_text(
+#     aes(
+#       x = rlabel_in * sin(mid_angle),
+#       y = rlabel_in * cos(mid_angle),
+#       label = count
+#     ),
+#     size = 14/.pt, # use 14 pt font size
+#     color = "black"
+#   ) +
+#   theme_map() +
+#   scale_fill_manual(values = myfillcolors)
 
 tidy_results %>% 
   filter(protein == "1B4T" | protein == "1CI0" | protein == "1EFV" |

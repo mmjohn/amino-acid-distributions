@@ -77,7 +77,8 @@ all_count %>%
 # make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
 ordered_count %>%
   group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> ordered_count
+  mutate(k = as.numeric(0:19)) -> ordered_count
+  #mutate(k = as.numeric(1:20)) -> ordered_count
 
 # remove aa with zero values
 ordered_count %>%
@@ -168,13 +169,13 @@ ordered_count %>%
                      values = c("grey" = "grey", "violetred" = "violetred"),
                      labels = c("actual", "estimated"))  +
   scale_x_continuous(
-    breaks = c(5, 10, 15, 20), 
+    breaks = c(0, 5, 10, 15), 
     expand = c(0, 0)
   ) +
   scale_y_continuous(
     breaks = c(0, 25, 50, 75, 100), 
     expand = c(0, 0),
-    limits = c(0, 101)
+    limits = c(0, 108)
   ) +
   labs(x = "Amino acids ranked, *k*", y = "Count") +
   theme(
@@ -231,6 +232,7 @@ gam_v_effaa %>%
 neff2 <- function(lambda_inv) {
   lambda <- 1/lambda_inv
   pi <- lambda*exp(-lambda*(0:19))
+  #pi <- lambda*exp(-lambda*(1:20))
   C <- sum(pi)
   pi <- pi/C
   exp(-sum(pi*log(pi)))
@@ -242,12 +244,13 @@ df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff
 
 Figure 2
 ```{r, message=FALSE}
+
 ggplot(gam_v_effaa, 
-       aes(x = eff_aa, y = 1/slope)) + 
+       aes(x = eff_aa, y = -1/slope)) + 
   geom_point(aes(color = result)) +
   geom_line(
     data = df_theory2, 
-    aes(ne, lambda_inv), 
+    aes(ne, -1*lambda_inv), 
     inherit.aes = FALSE, 
     size = 1
   ) +
@@ -265,14 +268,14 @@ ggplot(gam_v_effaa,
     axis.title.y = element_markdown()
   ) +
   scale_x_continuous(
-    breaks = c(0,5,10,15), 
-    limits = c(0,17), 
+    breaks = c(0,5,10,15),
+    limits = c(0,17),
     expand = c(0,0)
   ) +
   scale_y_continuous(
-    limits = c(-10,0.1), 
+    limits = c(-0.1,10),
     expand = c(0,0)
-  ) + 
+  ) +
   scale_color_manual(
     values = c("#E69F00", "#0072B2")
   ) +

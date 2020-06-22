@@ -105,10 +105,10 @@ all_count_nrm %>%
 # make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
 ordered_count_exp %>%
   group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> ordered_count_exp
+  mutate(k = as.numeric(0:19)) -> ordered_count_exp
 ordered_count_nrm %>%
   group_by(site) %>%
-  mutate(k = as.numeric(1:20)) -> ordered_count_nrm
+  mutate(k = as.numeric(0:19)) -> ordered_count_nrm
 
 # remove aa with zero values
 ordered_count_exp %>%
