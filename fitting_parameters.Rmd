@@ -428,7 +428,7 @@ ordered_count %>%
   group_by(site) %>%
   mutate(freq_1 = (est_count_1)/sum(est_count_1),
          freq_2 = (est_count_2)/sum(est_count_2),
-         freq_3 = (est_count_3)/sum(est_count_3)) %>% View()
+         freq_3 = (est_count_3)/sum(est_count_3)) %>% 
   select(site, aa, k, freq_1, freq_2, freq_3) -> site_aa_freq_2
 site_aa_freq_2 %>% 
   mutate(flnf_1 = freq_1*log(freq_1),
