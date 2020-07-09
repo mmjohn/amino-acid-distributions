@@ -251,7 +251,8 @@ rescale_est_dist <- function(protein_df) {
 }
 
 ordered_count %>%
-  nest(data = c(site, aa, count, k, rel_count, ln_count, slope, est_dist)) %>% 
+  nest(data = c(site, aa, count, k, rel_count, 
+                ln_count, slope, est_dist)) %>% 
   mutate(rescaled = map(data, rescale_est_dist)) %>% 
   select(-data) %>% 
   unnest(cols = rescaled) -> ordered_count
