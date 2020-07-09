@@ -16,31 +16,73 @@ This is the RMarkdown document used to produce Figure 6. It compares results for
 Load necessary packages
 ```{r, message=FALSE}
 library(tidyverse)
+library(Biostrings)
 library(stringr)
 library(cowplot)
 library(broom)
 library(ggtext)
 theme_set(theme_cowplot())
 
-# mean chi square
-# does one dist systematically fit better
-# aic or lrt to see if increase in parameter is worth it
-# distribution of chi square
 ```
 
 
 Read in and format data
 ```{r, message=FALSE}
-# read in data
-alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", 
-                     col_types = cols(.default = "c")) 
+# read in all .csv files in /data/real/
+empirical_files <- dir("data/real", 
+                       pattern = "*_Aligned_Sequences.fasta", 
+                       full.names = T)
 
-# tidy data used for null
-alignment %>% 
-  mutate(sequence = as.numeric(1:nrow(alignment)) ) %>% 
-  gather(key = "site", value = "aa", 1:153) -> tidy_align  
+# import alignment
+import_alignment <- function(filename) {
+  
+  fasta_file <- readAAStringSet(filename, format = "fasta")
+  seq_name = names(fasta_file)
+  aa_seq = paste(fasta_file)
+  seq_num = seq(1:length(seq_name))
+  real_align <- data.frame(seq_num, aa_seq, stringsAsFactors = F)
+  
+}
 
-tidy_align$site = as.numeric(tidy_align$site) 
+# change sequences from strings into character vectors
+aa_string_to_vect <- function(real_align) {
+
+  as.data.frame(strsplit(real_align$aa_seq, split = ""), 
+                row.names = NULL) -> int_df
+  as.data.frame(t(int_df), row.names = NULL) -> int_df
+
+}
+
+# tidy data frame
+tidy_df <- function(int_df) {
+  int_df %>%
+    mutate(num_seq = seq(1:nrow(int_df))) %>% 
+    pivot_longer(-num_seq, 
+                 names_to = "site_raw", 
+                 values_to = "aa") -> int_df
+  int_df %>% 
+    extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
+}
+
+#import_alignment(empirical_files[1]) %>% View()
+tibble(filename = empirical_files[1]) %>% 
+  extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
+  mutate(raw_data = map(filename, import_alignment),
+         long_data = map(raw_data, aa_string_to_vect),
+         tidy_data = map(long_data, tidy_df)) %>% 
+  select(-filename, -raw_data, -long_data) %>% 
+  unnest(cols = tidy_data) -> alignment
+
+# replace undefined aas
+alignment$site <- as.numeric(alignment$site)
+
+levels(alignment$aa) # "X" = any aa, "B" = N or D, "Z" = Q or D
+
+alignment$aa <- recode(alignment$aa, X = "-", B = "N", Z = "Q")
+
+levels(alignment$aa)
+
+alignment$aa <- as.character(alignment$aa)
 
 ```
 
@@ -48,28 +90,54 @@ tidy_align$site = as.numeric(tidy_align$site)
 Actual distribution
 ```{r, message=FALSE}
 # determine the number of each AA at each site
-tidy_align %>% 
-  group_by(site, aa) %>% 
-  summarize(count = n()) -> site_aa_count
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
 
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 
-                              'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+  }
+
+alignment %>%
+  nest(data = c(num_seq, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count
+
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 
+                              'I', 'K', 'L', 'M', 'N', 'P', 'Q', 
+                              'R', 'S', 'T', 'V', 'W', 'Y'), 
                            count = rep(0, 20))
 
+
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
-count_by_site <- function(site_df) {
+count_zero_aa_site <- function(site_df) {
+  
   site_df %>% 
     group_by(aa) %>% 
     summarize(count = n()) -> counts
   full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
 }
 
-# 2. Then call that function for all sites and combine the resulting data frames.
-tidy_align %>% 
-  nest(data = -site) %>%
-  mutate(counts = map(data, count_by_site)) %>%
-  dplyr::select(-data) %>%   
-  unnest(cols = c(counts)) -> all_count
+# 3. Apply to all proteins
+alignment %>%
+  nest(data = c(num_seq, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count
+
 
 ```
 
@@ -78,26 +146,72 @@ Estimated distribution
 ```{r, message=FALSE}
 # USING ONLY OBSERVED AA
 # order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
 all_count %>%
-  arrange(all_count$site, desc(count)) -> ordered_count
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count
+
+# EXCLUDE all '-' entries/gaps in alignment
+ordered_count %>%
+  filter(aa != "-") -> no_gaps
 
 # make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
-ordered_count %>%
-  group_by(site) %>%
-  mutate(k = as.numeric(0:19)) -> ordered_count
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(0:19))
+  
+}
+
+no_gaps %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count
 
 # remove aa with zero values
 ordered_count %>%
   filter(count > 0) -> observed_aa
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
+add_rel_count <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(rel_count = count/max(count))
+  
+}
+
 observed_aa %>%
-  group_by(site) %>%
-  mutate(rel_count = count/max(count)) -> observed_aa
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> observed_aa
 
 # log-transformed data
+add_ln_count <- function(protein_df) {
+  
+  protein_df %>% 
+    mutate(ln_count = log(rel_count))
+  
+}
+
 observed_aa %>%
-  mutate(ln_count = log(rel_count)) -> observed_aa 
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(log_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(log_count) -> observed_aa
+
 
 ```
 
@@ -107,13 +221,24 @@ observed_aa %>%
 # fit linear model to normalized, log-transformed data
 # set intercept to 0, only fitting 1 parameter (slope)
 
+fit_lm_protein_1 <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+           slope_1 = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    select(-data, -fit)
+  
+}
+
 observed_aa %>% 
-  nest(data = -site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope_1 = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
-  select(-data, -fit) -> observed_fits_1
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein_1)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_1
+
 ```
+
 
 
 2 parameters fit
@@ -121,12 +246,23 @@ observed_aa %>%
 # fit linear model to normalized, log-transformed data
 # fitting 2 parameters: slope and intercept
 
+fit_lm_protein_2 <- function(protein_df) {
+  
+  protein_df %>% 
+    nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
+    mutate(fit = map(data, ~ lm(ln_count ~ k, data = .)),
+           intercept_2 = map_dbl(fit, ~ (.)$coefficients[1]),
+           slope_2 = map_dbl(fit, ~ (.)$coefficients[2])) %>% 
+    select(-data, -fit)
+  
+}
+
 observed_aa %>% 
-  nest(data = -site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ k, data = .)),
-         intercept_2 = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope_2 = map_dbl(fit, ~ (.)$coefficients[2])) %>% 
-  select(-data, -fit) -> observed_fits_2
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein_2)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_2
+
 ```
 
 
@@ -167,18 +303,24 @@ Get estimate counts
 ```{r, message=FALSE}
 # combine dataframes of fits
 observed_fits_1 %>%
-  full_join(., observed_fits_2, by = "site") %>% 
+  full_join(., observed_fits_2, by = c("protein", "site")) %>% 
   full_join(., observed_fits_3, by = "site") -> observed_fits
 
-# add rel and ln counts to full dataframe
+# added rel_count and ln_count to all aa
 ordered_count %>%
-  group_by(site) %>%
-  mutate(rel_count = count/max(count)) -> ordered_count
+  nest(data = c(site, aa, count, k)) %>% 
+  mutate(rel_count = map(data, add_rel_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = rel_count) -> ordered_count
+
 ordered_count %>%
-  mutate(ln_count = log(rel_count)) -> ordered_count
+  nest(data = c(site, aa, count, k, rel_count)) %>% 
+  mutate(ln_count = map(data, add_ln_count)) %>% 
+  select(-data) %>% 
+  unnest(cols = ln_count) -> ordered_count
 
 ordered_count %>% 
-  left_join(observed_fits, by = "site") %>%
+  left_join(observed_fits, by = c("protein", "site")) %>%
   mutate(est_dist_1 = slope_1*exp(k*slope_1)) -> ordered_count
 
 ordered_count %>% 
@@ -187,14 +329,28 @@ ordered_count %>%
                                     intercept_3)) -> ordered_count
 
 # rescale to compare w raw count
+rescale_est_dist <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(est_rel_1 = est_dist_1/sum(est_dist_1),
+           est_rel_2 = est_dist_2/sum(est_dist_2),
+           est_rel_3 = est_dist_3/sum(est_dist_3)) %>% 
+    mutate(est_count_1 = sum(count)*est_rel_1,
+           est_count_2 = sum(count)*est_rel_2,
+           est_count_3 = sum(count)*est_rel_3)
+  
+}
+
 ordered_count %>%
-  group_by(site) %>%
-  mutate(est_rel_1 = est_dist_1/sum(est_dist_1),
-         est_rel_2 = est_dist_2/sum(est_dist_2),
-         est_rel_3 = est_dist_3/sum(est_dist_3)) %>%
-  mutate(est_count_1 = sum(count)*est_rel_1,
-         est_count_2 = sum(count)*est_rel_2,
-         est_count_3 = sum(count)*est_rel_3) -> ordered_count
+  nest(data = c(site, aa, count, k, rel_count, 
+                ln_count, slope_1, intercept_2,
+                slope_2, intercept_3, slope_3,
+                sqr_slp_3, est_dist_1, est_dist_2, 
+                est_dist_3)) %>% 
+  mutate(rescaled = map(data, rescale_est_dist)) %>% 
+  select(-data) %>% 
+  unnest(cols = rescaled) -> ordered_count
 
 ```
 
@@ -237,15 +393,15 @@ chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 Chi-squared results based on number of parameters used
 ```{r, message=FALSE}
-# 124 sites; 71 fail (57.3%)
+# 133 sites; 17 fail (12.8%)
 chisq_results %>% 
   filter(parameters == 1 & result == "fail") %>% nrow()
 
-# 124 sites; 83 fail (66.9%)
+# 133 sites; 34 fail (25.6%)
 chisq_results %>% 
   filter(parameters == 2 & result == "fail") %>% nrow()
 
-# 153 sites; 144 fail (94.1%)
+# 153 sites; 129 fail (84.3%)
 chisq_results %>% 
   filter(parameters == 3 & result == "fail") %>% nrow()
 
@@ -272,7 +428,7 @@ ordered_count %>%
   group_by(site) %>%
   mutate(freq_1 = (est_count_1)/sum(est_count_1),
          freq_2 = (est_count_2)/sum(est_count_2),
-         freq_3 = (est_count_3)/sum(est_count_3)) %>% 
+         freq_3 = (est_count_3)/sum(est_count_3)) %>% View()
   select(site, aa, k, freq_1, freq_2, freq_3) -> site_aa_freq_2
 site_aa_freq_2 %>% 
   mutate(flnf_1 = freq_1*log(freq_1),
@@ -289,7 +445,7 @@ site_aa_freq_2 %>%
 eff_aa_all_est %>% 
   pivot_longer(c(entr_1, entr_2, entr_3), names_to = "parameters",
                values_to = "entropy_est") %>% 
-  extract(parameters, "parameters", "entr_(.*)", remove = T) %>%
+  extract(parameters, "parameters", "entr_(.*)", remove = T) %>% 
   select(site, parameters, entropy_est) -> sub1
   
 eff_aa_all_est %>% 
@@ -314,17 +470,17 @@ rsq <- function (x, y) { cor(x, y) ^ 2 }
 compare_eff_aa %>% 
   filter(parameters == 1 & !is.na(eff_aa_est)) -> compare_p1
 
-rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9698161
+rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9706805
 
 compare_eff_aa %>% 
   filter(parameters == 2 & !is.na(eff_aa_est)) -> compare_p2
 
-rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8203932
+rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8589123
 
 compare_eff_aa %>% 
   filter(parameters == 3 & !is.na(eff_aa_est)) -> compare_p3
 
-rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.7725455
+rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.718942
 
 ```
 
@@ -333,28 +489,30 @@ rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.7725455
 Figure 6
 ```{r, message=FALSE}
 
-signif(0.9698161, digits = 3)
-signif(0.8203932, digits = 3)
-signif(0.7725455, digits = 3)
+signif(0.9706805, digits = 3)
+signif(0.8589123, digits = 3)
+signif(0.718942, digits = 3)
 
-dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.970", 
-                                  "*R*<sup>2</sup> = 0.820", 
-                                  "*R*<sup>2</sup> = 0.772"),
+dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.971", 
+                                  "*R*<sup>2</sup> = 0.859", 
+                                  "*R*<sup>2</sup> = 0.719"),
                         parameters = c(1, 2, 3),
                         x = c(11.25, 11.25, 11.25),
                         y = c(2, 2, 2))
 
-# compare_eff_aa %>% 
-#   mutate(label = case_when(parameters == 1 ~ "*R*<sup>2</sup> = 0.9552371",
-#                            parameters == 2 ~ "*R*<sup>2</sup> = 0.8203932",
-#                            parameters == 3 ~ "*R*<sup>2</sup> = 0.7725455")) -> compare_eff_aa
+left_join(compare_eff_aa, chisq_results) %>% 
+  filter(!is.na(result)) -> all_results
 
-ggplot(compare_eff_aa, 
-       aes(x=eff_aa, y=eff_aa_est)) + 
+ggplot(all_results, 
+       aes(x=eff_aa, y=eff_aa_est, color = result)) + 
   geom_point() +
   geom_abline(slope = 1, intercept = 0) + 
   labs(x = "*n*<sub>eff</sub> of actual distribution", 
-       y = "*n*<sub>eff</sub> of fit distribution") +
+       y = "*n*<sub>eff</sub> of fit distribution",
+       color = "Result") +
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
+  ) +
   #geom_richtext(data = dat_text, aes(label = label)) #+
   geom_richtext(data = dat_text, 
                 aes(x = x, y = y,label = label),
