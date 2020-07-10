@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Varying the number of parameters used for fitting amino acid distributions
 
-This is the RMarkdown document used to produce Figure 7. It compares results for fitting distributions with a different number of parameters for all empirical MSAs.
+This is the RMarkdown document used to produce Supplementary Figure 3. It compares results for fitting distributions with a different number of parameters for all empirical MSAs.
 
 Load necessary packages
 ```{r, message=FALSE}
@@ -533,18 +533,27 @@ Figure 7
 ```{r, message=FALSE}
 
 ggplot(results_corr, aes(x = param, y = r2)) +
-  geom_violin(fill = "gray90") +
+  geom_boxplot(fill = "white", outlier.shape = NA) +
+  #geom_jitter(height = 0, width = .1) +
+  #geom_point(position = position_jitter(height = 0, width = 0.1, seed = 10)) +
+  #geom_line(aes(group = protein), position = position_jitter(height = 0, 
+  #                                                           width = 0.1,
+  #                                                           seed = 10)) +
+  geom_line(aes(group = protein), color = "gray") +
   geom_point() +
   labs(x = "Number of parameters in model", 
        y = "*R*<sup>2</sup>") +
   theme_cowplot(12, rel_small = 1) +
   theme(
     axis.title.x = element_markdown(),
-    axis.title.y = element_markdown()) -> fig7
+    axis.title.y = element_markdown()) -> figs3
 
-fig7
+figs3
+# blue points, light blue lines
+# box plots included?
+# jitter?
 
-save_plot("figure7.png", fig7, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures3.png", figs3, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```
