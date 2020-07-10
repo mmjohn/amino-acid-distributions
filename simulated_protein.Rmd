@@ -29,7 +29,8 @@ theme_set(theme_cowplot())
 Read in and reformat data
 ```{r, message=FALSE}
 # read in data
-alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", col_types = cols(.default = "c")) 
+alignment <-read_csv("data/simulated/results_1B4T_A_evolved_split.csv", 
+                     col_types = cols(.default = "c")) 
 
 # tidy data used for null
 alignment %>% 
@@ -46,7 +47,9 @@ tidy_align %>%
   group_by(site, aa) %>% 
   summarize(count = n()) -> site_aa_count
 
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 
+                              'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 
+                              'T', 'V', 'W', 'Y'), 
                            count = rep(0, 20))
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
@@ -238,12 +241,19 @@ neff2 <- function(lambda_inv) {
   exp(-sum(pi*log(pi)))
 }
 
-df_theory2 <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff2, numeric(1)))
+df_theory2 <- data.frame(lambda_inv = (0:-100)/10, 
+                         ne = vapply((0:-100)/10, neff2, numeric(1)))
 ```
 
 
 Figure 2
 ```{r, message=FALSE}
+gam_v_effaa %>% 
+  group_by(result) %>% 
+  count()
+
+gam_v_effaa %>% 
+  filter(!is.na(result)) -> gam_v_effaa
 
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, y = -1/slope)) + 
@@ -260,10 +270,11 @@ ggplot(gam_v_effaa,
   ) +
   labs(
     x = "Effective number of amino acids *n*<sub>eff</sub>", 
-    y = "Fitting parameter &lambda;<sup>-1</sup>"
+    y = "Fitting parameter &lambda;<sup>-1</sup>",
+    color = "Result"
   ) +
   theme(
-    legend.position = "none",
+    #legend.position = "none",
     axis.title.x = element_markdown(),
     axis.title.y = element_markdown()
   ) +
