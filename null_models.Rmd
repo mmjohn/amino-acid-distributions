@@ -30,29 +30,26 @@ Generate data under an exponential and normal distribution
 # generate data into tidy_align df
 # correct method: multinomial with expo prob function
 # p(k)=ce^(-lambda*k)
-# rmultinom(10, 500, exp(-1*(0:19)))
-# range of lambda, range of eff n
-# 10 sites with 500 aa counts
-null_exp0 <- data.frame(t(rmultinom(10, 500, exp(-1*(0:19))))) 
-null_exp1 <- data.frame(t(rmultinom(10, 500, exp(-0.83*(0:19)))))
-null_exp2 <- data.frame(t(rmultinom(10, 500, exp(-0.75*(0:19)))))
-null_exp3 <- data.frame(t(rmultinom(10, 500, exp(-0.63*(0:19)))))
-null_exp4 <- data.frame(t(rmultinom(10, 500, exp(-0.5*(0:19)))))
-null_exp5 <- data.frame(t(rmultinom(10, 500, exp(-0.42*(0:19)))))
-null_exp6 <- data.frame(t(rmultinom(10, 500, exp(-0.35*(0:19)))))
-null_exp7 <- data.frame(t(rmultinom(10, 500, exp(-0.3*(0:19)))))
-null_exp8 <- data.frame(t(rmultinom(10, 500, exp(-0.25*(0:19)))))
-null_exp9 <- data.frame(t(rmultinom(10, 500, exp(-0.2*(0:19)))))
-null_exp10 <- data.frame(t(rmultinom(10, 500, exp(-0.15*(0:19)))))
+# rmultinom(1, 500, exp(-1*(0:19)))
+# 1 site with 500 aa counts
+# range of lambda to get range of eff n
 
-full_join(null_exp0, null_exp1) %>% full_join(., null_exp2) %>% 
-  full_join(., null_exp3) %>% full_join(., null_exp4) %>% 
-  full_join(., null_exp5) %>% full_join(., null_exp6) %>%
-  full_join(., null_exp7) %>% full_join(., null_exp8) %>% 
-  full_join(., null_exp9) %>% full_join(., null_exp10) -> null_exp
+# generate 110 values of lambda evenly spaced between 0.15 and 1
+lambda_exp <- seq(0.10, 1, length.out = 110)
 
-rm(null_exp0, null_exp1, null_exp2, null_exp3, null_exp4, null_exp5,
-   null_exp6, null_exp7, null_exp8, null_exp9, null_exp10)
+# function for multinomial sampling with exponential probability function
+sample_null_exp <- function(lambda){
+  
+  # 1 site with 500 sequences
+  null_site_exp <- t(rmultinom(1, 500, exp(-lambda*(0:19))))
+  
+}
+
+# get count data for each lambda value
+null_exp <- lapply(lambda_exp, sample_null_exp)
+
+# convert list to dataframe
+null_exp <- data.frame(matrix(unlist(null_exp), nrow=length(null_exp), byrow=T))
 
 # recreate all_count df (site, aa, count)
 null_exp %>% 
@@ -63,28 +60,26 @@ null_exp %>%
 # correct method: multinomial with normal prob function
 # p(k)=ce^(-(k-10)^2/(sigma^2))
 # range of sigman, range of neff
-# 10 sites with 500 aa counts
-null_nrm0 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(0.5^2))))) 
-null_nrm1 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(1^2)))))
-null_nrm2 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(1.5^2)))))
-null_nrm3 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(2.5^2)))))
-null_nrm4 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(3.5^2)))))
-null_nrm5 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(5^2)))))
-null_nrm6 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(7^2)))))
-null_nrm7 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(9^2)))))
-null_nrm8 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(11.5^2)))))
-null_nrm9 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(13.5^2)))))
-null_nrm10 <- data.frame(t(rmultinom(10, 500, exp(-1*((0:19)-10)^2/(15^2)))))
+# 1 site with 500 aa counts
 
-full_join(null_nrm0, null_nrm1) %>% full_join(., null_nrm2) %>% 
-  full_join(., null_nrm3) %>% full_join(., null_nrm4) %>% 
-  full_join(., null_nrm5) %>% full_join(., null_nrm6) %>% 
-  full_join(., null_nrm7) %>% full_join(., null_nrm8) %>% 
-  full_join(., null_nrm9) %>% full_join(., null_nrm10) -> null_nrm
+# generate 110 values of sigma evenly spaced between 0.5 and 15
+sigma_nrm <- seq(0.5, 15, length.out = 110)
 
-rm(null_nrm0, null_nrm1, null_nrm2, null_nrm3, null_nrm4, null_nrm5,
-   null_nrm6, null_nrm7, null_nrm8, null_nrm9, null_nrm10)
+# function for multinomial sampling with normal probability function
+sample_null_nrm <- function(sigma){
+  
+  # 1 site with 500 sequences
+  null_site_nrm <- t(rmultinom(1, 500, exp(-1*((0:19)-10)^2/(sigma^2))))
+  
+}
 
+# get count data for each sigma value
+null_nrm <- lapply(sigma_nrm, sample_null_nrm)
+
+# convert list to dataframe
+null_nrm <- data.frame(matrix(unlist(null_nrm), nrow=length(null_nrm), byrow=T))
+
+# recreate all_count df (site, aa, count)
 null_nrm %>% 
   mutate(site = seq(1:nrow(null_nrm))) %>% 
   pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_nrm
