@@ -283,9 +283,9 @@ df_theory2 <- data.frame(lambda_inv = (0:-400)/10, ne = vapply((0:-400)/10,
                                                               neff, numeric(1)))
 
 gam_v_effaa_exp %>% 
-  mutate(null = "Exponential") -> gam_v_effaa_exp
+  mutate(null = "Positive control") -> gam_v_effaa_exp
 gam_v_effaa_nrm %>% 
-  mutate(null = "Normal") -> gam_v_effaa_nrm
+  mutate(null = "Negative control") -> gam_v_effaa_nrm
 
 full_join(gam_v_effaa_exp, gam_v_effaa_nrm, by = c("site", "slope", "eff_aa",
                                                    "result", "null")) -> gam_v_effaa
@@ -295,6 +295,9 @@ full_join(gam_v_effaa_exp, gam_v_effaa_nrm, by = c("site", "slope", "eff_aa",
 
 Figure 5
 ```{r}
+# reorder panels
+gam_v_effaa$null <- factor(gam_v_effaa$null, 
+                           levels = c("Positive control", "Negative control"))
 
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, 
