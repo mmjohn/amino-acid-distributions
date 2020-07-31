@@ -1,7 +1,7 @@
 ---
 title: "Fitting parameters"
 author: "Mackenzie Johnson"
-date: "12/1/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -29,9 +29,11 @@ theme_set(theme_cowplot())
 Read in and format data
 ```{r, message=FALSE}
 # read in all .csv files in /data/real/
-empirical_files <- dir("data/real", 
-                       pattern = "*_Aligned_Sequences.fasta", 
-                       full.names = T)
+empirical_files <- dir(
+  "data/real", 
+  pattern = "*_Aligned_Sequences.fasta", 
+  full.names = T
+)
 
 # import alignment
 import_alignment <- function(filename) {
@@ -57,19 +59,28 @@ aa_string_to_vect <- function(real_align) {
 tidy_df <- function(int_df) {
   int_df %>%
     mutate(num_seq = seq(1:nrow(int_df))) %>% 
-    pivot_longer(-num_seq, 
-                 names_to = "site_raw", 
-                 values_to = "aa") -> int_df
+    pivot_longer(
+      -num_seq, 
+      names_to = "site_raw", 
+      values_to = "aa"
+    ) -> int_df
   int_df %>% 
-    extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
+    extract(
+      site_raw, 
+      "site", 
+      "V(.*)", 
+      remove = TRUE
+    ) -> int_df
 }
 
 #import_alignment(empirical_files[1]) %>% View()
 tibble(filename = empirical_files[1]) %>% 
   extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
-  mutate(raw_data = map(filename, import_alignment),
-         long_data = map(raw_data, aa_string_to_vect),
-         tidy_data = map(long_data, tidy_df)) %>% 
+  mutate(
+    raw_data = map(filename, import_alignment),
+    long_data = map(raw_data, aa_string_to_vect),
+    tidy_data = map(long_data, tidy_df)
+  ) %>% 
   select(-filename, -raw_data, -long_data) %>% 
   unnest(cols = tidy_data) -> alignment
 
@@ -225,8 +236,10 @@ fit_lm_protein_1 <- function(protein_df) {
   
   protein_df %>% 
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
-    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-           slope_1 = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    mutate(
+      fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+      slope_1 = map_dbl(fit, ~ (.)$coefficients[1])
+    ) %>% 
     select(-data, -fit)
   
 }
@@ -250,9 +263,11 @@ fit_lm_protein_2 <- function(protein_df) {
   
   protein_df %>% 
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
-    mutate(fit = map(data, ~ lm(ln_count ~ k, data = .)),
-           intercept_2 = map_dbl(fit, ~ (.)$coefficients[1]),
-           slope_2 = map_dbl(fit, ~ (.)$coefficients[2])) %>% 
+    mutate(
+      fit = map(data, ~ lm(ln_count ~ k, data = .)),
+      intercept_2 = map_dbl(fit, ~ (.)$coefficients[1]),
+      slope_2 = map_dbl(fit, ~ (.)$coefficients[2])
+    ) %>% 
     select(-data, -fit)
   
 }
@@ -289,10 +304,12 @@ observed_aa_mod %>%
 
 observed_aa_mod %>% 
   nest(data = -site) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
-         intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
-         sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])) %>% 
+  mutate(
+    fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
+    intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
+    slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
+    sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
+  ) %>% 
   select(-data, -fit) -> observed_fits_3
 
 
@@ -324,21 +341,27 @@ ordered_count %>%
   mutate(est_dist_1 = slope_1*exp(k*slope_1)) -> ordered_count
 
 ordered_count %>% 
-  mutate(est_dist_2 = slope_2*exp(k*slope_2+intercept_2),
-         est_dist_3 = slope_3*exp(k*slope_3 + k*k*sqr_slp_3 + 
-                                    intercept_3)) -> ordered_count
+  mutate(
+    est_dist_2 = slope_2*exp(k*slope_2+intercept_2),
+    est_dist_3 = slope_3*exp(k*slope_3 + k*k*sqr_slp_3 + 
+                                    intercept_3)
+  ) -> ordered_count
 
 # rescale to compare w raw count
 rescale_est_dist <- function(protein_df) {
   
   protein_df %>% 
     group_by(site) %>% 
-    mutate(est_rel_1 = est_dist_1/sum(est_dist_1),
-           est_rel_2 = est_dist_2/sum(est_dist_2),
-           est_rel_3 = est_dist_3/sum(est_dist_3)) %>% 
-    mutate(est_count_1 = sum(count)*est_rel_1,
-           est_count_2 = sum(count)*est_rel_2,
-           est_count_3 = sum(count)*est_rel_3)
+    mutate(
+      est_rel_1 = est_dist_1/sum(est_dist_1),
+      est_rel_2 = est_dist_2/sum(est_dist_2),
+      est_rel_3 = est_dist_3/sum(est_dist_3)
+    ) %>% 
+    mutate(
+      est_count_1 = sum(count)*est_rel_1,
+      est_count_2 = sum(count)*est_rel_2,
+      est_count_3 = sum(count)*est_rel_3
+    )
   
 }
 
@@ -362,23 +385,36 @@ Chi-squared test: actual vs estimated
 ordered_count %>% 
   nest(data = -site) %>%
   ungroup() %>%
-  mutate(chisq_1 = map(data, ~ sum(((.$count - .$est_count_1)^2)/.$est_count_1)),
-         chisq_2 = map(data, ~ sum(((.$count - .$est_count_2)^2)/.$est_count_2)),
-         chisq_3 = map(data, ~ sum(((.$count - .$est_count_3)^2)/.$est_count_3)),
-         p_value_1 = map_dbl(chisq_1, ~ pchisq(., 18, lower.tail=FALSE)),
-         p_value_2 = map_dbl(chisq_2, ~ pchisq(., 18, lower.tail=FALSE)),
-         p_value_3 = map_dbl(chisq_3, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+  mutate(
+    chisq_1 = map(data, ~ sum(((.$count - .$est_count_1)^2)/.$est_count_1)),
+    chisq_2 = map(data, ~ sum(((.$count - .$est_count_2)^2)/.$est_count_2)),
+    chisq_3 = map(data, ~ sum(((.$count - .$est_count_3)^2)/.$est_count_3)),
+    p_value_1 = map_dbl(chisq_1, ~ pchisq(., 18, lower.tail=FALSE)),
+    p_value_2 = map_dbl(chisq_2, ~ pchisq(., 18, lower.tail=FALSE)),
+    p_value_3 = map_dbl(chisq_3, ~ pchisq(., 18, lower.tail=FALSE))
+  ) %>% 
   select(-data) %>%
-  mutate(p.adjusted_1 = p.adjust(p_value_1, method= "fdr"),
-         p.adjusted_2 = p.adjust(p_value_2, method= "fdr"),
-         p.adjusted_3 = p.adjust(p_value_3, method= "fdr")) -> chisq_results
+  mutate(
+    p.adjusted_1 = p.adjust(p_value_1, method= "fdr"),
+    p.adjusted_2 = p.adjust(p_value_2, method= "fdr"),
+    p.adjusted_3 = p.adjust(p_value_3, method= "fdr")
+  ) -> chisq_results
 
 chisq_results %>% 
   select(site, p.adjusted_1, p.adjusted_2, p.adjusted_3) -> chisq_results
 
-pivot_longer(chisq_results, -site, names_to = "parameters_raw", 
-             values_to = "p.adjusted") %>% 
-  extract(parameters_raw, "parameters", "p.adjusted_(.*)", remove = T) -> chisq_results
+pivot_longer(
+  chisq_results, 
+  -site, 
+  names_to = "parameters_raw", 
+  values_to = "p.adjusted"
+) %>% 
+  extract(
+    parameters_raw, 
+    "parameters", 
+    "p.adjusted_(.*)", 
+    remove = T
+  ) -> chisq_results
 
 chisq_results %>%
   mutate(result = "pass") -> chisq_results
@@ -419,40 +455,63 @@ observed_aa %>%
 site_aa_freq %>% 
   mutate(flnf = frequency*log(frequency)) %>%
   group_by(site) %>% 
-  summarize(entropy = -sum(flnf),
-            eff_aa = exp(entropy),
-            n = length(unique(aa))) -> eff_aa_all
+  summarize(
+    entropy = -sum(flnf),
+    eff_aa = exp(entropy),
+    n = length(unique(aa))
+  ) -> eff_aa_all
 
 # eff aa for estimated distributions
 ordered_count %>% 
   group_by(site) %>%
-  mutate(freq_1 = (est_count_1)/sum(est_count_1),
-         freq_2 = (est_count_2)/sum(est_count_2),
-         freq_3 = (est_count_3)/sum(est_count_3)) %>% 
+  mutate(
+    freq_1 = (est_count_1)/sum(est_count_1),
+    freq_2 = (est_count_2)/sum(est_count_2),
+    freq_3 = (est_count_3)/sum(est_count_3)
+  ) %>% 
   select(site, aa, k, freq_1, freq_2, freq_3) -> site_aa_freq_2
 site_aa_freq_2 %>% 
-  mutate(flnf_1 = freq_1*log(freq_1),
-         flnf_2 = freq_2*log(freq_2),
-         flnf_3 = freq_3*log(freq_3)) %>%
+  mutate(
+    flnf_1 = freq_1*log(freq_1),
+    flnf_2 = freq_2*log(freq_2),
+    flnf_3 = freq_3*log(freq_3)
+  ) %>%
   group_by(site) %>%
-  summarize(entr_1 = -sum(flnf_1),
-            entr_2 = -sum(flnf_2),
-            entr_3 = -sum(flnf_3),
-            eff_aa_est_1 = exp(entr_1),
-            eff_aa_est_2 = exp(entr_2),
-            eff_aa_est_3 = exp(entr_3)) -> eff_aa_all_est
+  summarize(
+    entr_1 = -sum(flnf_1),
+    entr_2 = -sum(flnf_2),
+    entr_3 = -sum(flnf_3),
+    eff_aa_est_1 = exp(entr_1),
+    eff_aa_est_2 = exp(entr_2),
+    eff_aa_est_3 = exp(entr_3)
+  ) -> eff_aa_all_est
 
 eff_aa_all_est %>% 
-  pivot_longer(c(entr_1, entr_2, entr_3), names_to = "parameters",
-               values_to = "entropy_est") %>% 
-  extract(parameters, "parameters", "entr_(.*)", remove = T) %>% 
+  pivot_longer(
+    c(entr_1, entr_2, entr_3), 
+    names_to = "parameters",
+    values_to = "entropy_est"
+  ) %>% 
+  extract(
+    parameters, 
+    "parameters", 
+    "entr_(.*)", 
+    remove = T
+  ) %>% 
   select(site, parameters, entropy_est) -> sub1
   
 eff_aa_all_est %>% 
-  pivot_longer(c(eff_aa_est_1, eff_aa_est_2, eff_aa_est_3),
-               names_to = "parameter",
-               values_to = "eff_aa_est") %>% 
-  extract(parameter, "parameters", "eff_aa_est_(.*)", remove = T) %>%
+  pivot_longer(
+    c(eff_aa_est_1, eff_aa_est_2, eff_aa_est_3),
+    names_to = "parameter",
+    values_to = "eff_aa_est"
+  ) %>% 
+  extract(
+    parameter, 
+    "parameters", 
+    "eff_aa_est_(.*)", 
+    remove = T
+  ) %>%
   select(site, parameters, eff_aa_est) -> sub2
 
 full_join(sub1, sub2, by = c("site", "parameters")) -> eff_aa_est
@@ -493,12 +552,14 @@ signif(0.9706805, digits = 3)
 signif(0.8589123, digits = 3)
 signif(0.718942, digits = 3)
 
-dat_text <- data.frame( label = c("*R*<sup>2</sup> = 0.971", 
-                                  "*R*<sup>2</sup> = 0.859", 
-                                  "*R*<sup>2</sup> = 0.719"),
-                        parameters = c(1, 2, 3),
-                        x = c(11.25, 11.25, 11.25),
-                        y = c(2, 2, 2))
+dat_text <- data.frame(
+  label = c("*R*<sup>2</sup> = 0.971",
+            "*R*<sup>2</sup> = 0.859",
+            "*R*<sup>2</sup> = 0.719"),
+  parameters = c(1, 2, 3),
+  x = c(11.25, 11.25, 11.25),
+  y = c(2, 2, 2)
+)
 
 left_join(compare_eff_aa, chisq_results) %>% 
   filter(!is.na(result)) -> all_results
@@ -507,17 +568,21 @@ ggplot(all_results,
        aes(x=eff_aa, y=eff_aa_est, color = result)) + 
   geom_point() +
   geom_abline(slope = 1, intercept = 0) + 
-  labs(x = "*n*<sub>eff</sub> of actual distribution", 
-       y = "*n*<sub>eff</sub> of fit distribution",
-       color = "Result") +
+  labs(
+    x = "*n*<sub>eff</sub> of actual distribution", 
+    y = "*n*<sub>eff</sub> of fit distribution",
+    color = "Result"
+  ) +
   scale_color_manual(
     values = c("#E69F00", "#0072B2")
   ) +
   #geom_richtext(data = dat_text, aes(label = label)) #+
-  geom_richtext(data = dat_text, 
-                aes(x = x, y = y,label = label),
-                label.color = NA,
-                inherit.aes = FALSE) +
+  geom_richtext(
+    data = dat_text, 
+    aes(x = x, y = y,label = label),
+    label.color = NA,
+    inherit.aes = FALSE
+  ) +
   facet_grid(vars(parameters)) + 
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
@@ -531,24 +596,6 @@ fig6
 
 save_plot("figure6.png", fig6, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
-
-```
-
-Other figure
-```{r}
-chisq_results %>% 
-  ggplot(aes(x = p.adjusted, fill = parameters)) +
-  geom_histogram() +
-  #facet_wrap(vars(parameters)) #+
-  scale_y_log10() 
-
-chisq_results %>% 
-  ggplot(aes(x = p.adjusted)) +
-  geom_histogram() +
-  facet_grid(vars(parameters)) +
-  scale_y_log10()
-
-
 
 ```
 

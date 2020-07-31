@@ -1,7 +1,7 @@
 ---
 title: "Null models"
 author: "Mackenzie Johnson"
-date: "10/31/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -49,12 +49,22 @@ sample_null_exp <- function(lambda){
 null_exp <- lapply(lambda_exp, sample_null_exp)
 
 # convert list to dataframe
-null_exp <- data.frame(matrix(unlist(null_exp), nrow=length(null_exp), byrow=T))
+null_exp <- data.frame(
+  matrix(
+    unlist(null_exp), 
+    nrow=length(null_exp), 
+    byrow=T
+  )
+)
 
 # recreate all_count df (site, aa, count)
 null_exp %>% 
   mutate(site = seq(1:nrow(null_exp))) %>% 
-  pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_exp
+  pivot_longer(
+    -site, 
+    names_to = "aa", 
+    values_to = "count"
+  ) -> all_count_exp
 
 ###### normal dist ######
 # correct method: multinomial with normal prob function
@@ -77,12 +87,22 @@ sample_null_nrm <- function(sigma){
 null_nrm <- lapply(sigma_nrm, sample_null_nrm)
 
 # convert list to dataframe
-null_nrm <- data.frame(matrix(unlist(null_nrm), nrow=length(null_nrm), byrow=T))
+null_nrm <- data.frame(
+  matrix(
+    unlist(null_nrm), 
+    nrow=length(null_nrm), 
+    byrow=T
+  )
+)
 
 # recreate all_count df (site, aa, count)
 null_nrm %>% 
   mutate(site = seq(1:nrow(null_nrm))) %>% 
-  pivot_longer(-site, names_to = "aa", values_to = "count") -> all_count_nrm
+  pivot_longer(
+    -site, 
+    names_to = "aa", 
+    values_to = "count"
+  ) -> all_count_nrm
 
 
 ```
@@ -129,15 +149,17 @@ observed_aa_nrm %>%
 # SET INTERCEPT TO 0
 observed_aa_exp %>% 
   nest(data = c(aa, count, k, rel_count, ln_count)) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+  mutate(
+    fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+    slope = map_dbl(fit, ~ (.)$coefficients[1])
+  ) %>% 
   select(-data, -fit) -> observed_fits_exp
 observed_aa_nrm %>% 
   nest(data = c(aa, count, k, rel_count, ln_count)) %>%
-  mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-         #intercept = map_dbl(fit, ~ (.)$coefficients[1]),
-         slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+  mutate(
+    fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+    slope = map_dbl(fit, ~ (.)$coefficients[1])
+  ) %>% 
   select(-data, -fit) -> observed_fits_nrm
 
 ordered_count_exp %>% 
@@ -166,8 +188,10 @@ Chi-squared: null vs. estimated distribution
 # exponential
 ordered_count_exp %>% 
   nest(data = c(aa, count, k, slope, est_dist, est_rel, est_count)) %>%
-  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
-         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+  mutate(
+    chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+    p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))
+  ) %>% 
   select(-data) %>%
   mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results_exp
 
@@ -181,8 +205,10 @@ chisq_results_exp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_exp
 # normal
 ordered_count_nrm %>% 
   nest(data = c(aa, count, k, slope, est_dist, est_rel, est_count)) %>%
-  mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
-         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+  mutate(
+    chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+    p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))
+  ) %>% 
   select(-data) %>%
   mutate(p.adjusted = p.adjust(p_value, method= "fdr")) -> chisq_results_nrm
 
@@ -210,15 +236,19 @@ observed_aa_nrm %>%
 site_aa_freq_exp %>% 
   mutate(flnf = frequency*log(frequency)) %>%
   group_by(site) %>% 
-  summarize(entropy = -sum(flnf),
-            eff_aa = exp(entropy),
-            n = length(unique(aa))) -> eff_aa_all_exp
+  summarize(
+    entropy = -sum(flnf),
+    eff_aa = exp(entropy),
+    n = length(unique(aa))
+  ) -> eff_aa_all_exp
 site_aa_freq_nrm %>% 
   mutate(flnf = frequency*log(frequency)) %>%
   group_by(site) %>% 
-  summarize(entropy = -sum(flnf),
-            eff_aa = exp(entropy),
-            n = length(unique(aa))) -> eff_aa_all_nrm
+  summarize(
+    entropy = -sum(flnf),
+    eff_aa = exp(entropy),
+    n = length(unique(aa))
+  ) -> eff_aa_all_nrm
 
 # eff aa for estimated distribution
 ordered_count_exp %>% 
@@ -227,26 +257,23 @@ ordered_count_exp %>%
 site_aa_freq_2_exp %>% 
   mutate(flnf = freq*log(freq)) %>%
   group_by(site) %>%
-  summarize(entr = -sum(flnf),
-            eff_aa_est = exp(entr)) -> eff_aa_all_est_exp
+  summarize(
+    entr = -sum(flnf),
+    eff_aa_est = exp(entr)
+  ) -> eff_aa_all_est_exp
 ordered_count_nrm %>% 
   group_by(site) %>%
   mutate(freq = (est_count)/sum(est_count)) -> site_aa_freq_2_nrm
 site_aa_freq_2_nrm %>% 
   mutate(flnf = freq*log(freq)) %>%
   group_by(site) %>%
-  summarize(entr = -sum(flnf),
-            eff_aa_est = exp(entr)) -> eff_aa_all_est_nrm
+  summarize(
+    entr = -sum(flnf),
+    eff_aa_est = exp(entr)
+  ) -> eff_aa_all_est_nrm
 
 left_join(eff_aa_all_exp, eff_aa_all_est_exp) -> compare_eff_aa_exp
 left_join(eff_aa_all_nrm, eff_aa_all_est_nrm) -> compare_eff_aa_nrm
-
-# ggplot(compare_eff_aa_nrm, aes(x=eff_aa, y=eff_aa_est)) + 
-#   geom_point() +
-#   geom_abline(slope = 1, intercept = 0) + 
-#   #xlim(0,16) + 
-#   #ylim(0,16) + 
-#   labs(title = "Null model linear fit", x = "eff_aa actual", y = "eff_aa fit")
 
 ```
 
@@ -277,18 +304,21 @@ neff <- function(lambda_inv) {
 }
 #neff2(1/3)
 
-df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, 
-                                                              neff, numeric(1)))
-df_theory2 <- data.frame(lambda_inv = (0:-400)/10, ne = vapply((0:-400)/10, 
-                                                              neff, numeric(1)))
+df_theory <- data.frame(
+  lambda_inv = (0:-400)/10, 
+  ne = vapply((0:-400)/10, neff, numeric(1))
+)
 
 gam_v_effaa_exp %>% 
   mutate(null = "Positive control") -> gam_v_effaa_exp
 gam_v_effaa_nrm %>% 
   mutate(null = "Negative control") -> gam_v_effaa_nrm
 
-full_join(gam_v_effaa_exp, gam_v_effaa_nrm, by = c("site", "slope", "eff_aa",
-                                                   "result", "null")) -> gam_v_effaa
+full_join(
+  gam_v_effaa_exp, 
+  gam_v_effaa_nrm, 
+  by = c("site", "slope", "eff_aa", "result", "null")
+) -> gam_v_effaa
 
 ```
 
@@ -296,21 +326,27 @@ full_join(gam_v_effaa_exp, gam_v_effaa_nrm, by = c("site", "slope", "eff_aa",
 Figure 5
 ```{r}
 # reorder panels
-gam_v_effaa$null <- factor(gam_v_effaa$null, 
-                           levels = c("Positive control", "Negative control"))
+gam_v_effaa$null <- factor(
+  gam_v_effaa$null, 
+  levels = c("Positive control", "Negative control")
+)
 
 ggplot(gam_v_effaa, 
        aes(x = eff_aa, 
            y = -1/slope)) + 
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory2, 
-            aes(ne, -1*lambda_inv), 
-            inherit.aes = FALSE, 
-            size = 1) +
+  geom_line(
+    data = df_theory, 
+    aes(ne, -1*lambda_inv), 
+    inherit.aes = FALSE, 
+    size = 1
+  ) +
   facet_wrap(vars(null)) +
-  labs(x = "Effective number of amino acids *n*<sub>eff</sub>", 
-       y = "Fitting parameter &lambda;<sup>-1</sup>",
-       color = "Result") +
+  labs(
+    x = "Effective number of amino acids *n*<sub>eff</sub>", 
+    y = "Fitting parameter &lambda;<sup>-1</sup>",
+    color = "Result"
+  ) +
   scale_color_manual(
     values = c("#E69F00", "#0072B2")
   ) +
@@ -319,10 +355,12 @@ ggplot(gam_v_effaa,
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
   background_grid() +
-  theme(legend.position = "right",
-        axis.title.x = element_markdown(),
-        axis.title.y = element_markdown(),
-        strip.background = element_rect(fill = "gray90")) -> fig5
+  theme(
+    legend.position = "right",
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown(),
+    strip.background = element_rect(fill = "gray90")
+  ) -> fig5
 
 fig5
 

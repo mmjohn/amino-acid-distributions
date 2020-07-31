@@ -1,7 +1,7 @@
 ---
 title: "Fit performance on simulated vs empirical alignments"
 author: "Mackenzie Johnson"
-date: "12/15/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -42,9 +42,17 @@ tidy_alignments <- function(alignment) {
 }
 
 alignments_sim <- tibble(filename = simulated_files) %>%
-  extract(filename, "protein", "results_(.*)_evolved_split", remove = FALSE) %>%
+  extract(
+    filename, 
+    "protein", 
+    "results_(.*)_evolved_split", 
+    remove = FALSE
+  ) %>%
   mutate(
-    raw_data = map(filename, function(x) read_csv(x, col_types = cols(.default = "c"))),
+    raw_data = map(
+      filename, 
+      function(x) read_csv(x, col_types = cols(.default = "c"))
+    ),
     alignment = map(raw_data, tidy_alignments)
   ) %>%
   select(-raw_data, -filename) %>%
@@ -157,9 +165,11 @@ alignments_sim %>%
   unnest(cols = counts) -> site_aa_count_sim
 
 # add unobserved amino acids to counts
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P',
-                              'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
-                       count = rep(0, 20))
+empty_counts <- tibble(
+  aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 
+         'N', 'P','Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
+  count = rep(0, 20)
+)
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
 count_zero_aa_site <- function(site_df) {
@@ -284,8 +294,10 @@ fit_lm_protein <- function(protein_df) {
   
   protein_df %>% 
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
-    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    mutate(
+      fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+      slope = map_dbl(fit, ~ (.)$coefficients[1])
+    ) %>% 
     select(-data, -fit)
   
 }
@@ -480,7 +492,11 @@ chisq_results_sim_partial$chisq <- as.numeric(chisq_results_sim_partial$chisq)
 Read in and reformat data 
 ```{r, message=FALSE}
 # read in all .csv files in /data/real/
-empirical_files <- dir("data/real", pattern = "*_Aligned_Sequences.fasta", full.names = T)
+empirical_files <- dir(
+  "data/real", 
+  pattern = "*_Aligned_Sequences.fasta", 
+  full.names = T
+)
 
 # import alignment
 import_alignment <- function(filename) {
@@ -506,7 +522,11 @@ aa_string_to_vect <- function(real_align) {
 tidy_df <- function(int_df) {
   int_df %>%
     mutate(num_seq = seq(1:nrow(int_df))) %>% 
-    pivot_longer(-num_seq, names_to = "site_raw", values_to = "aa") -> int_df
+    pivot_longer(
+      -num_seq, 
+      names_to = "site_raw", 
+      values_to = "aa"
+    ) -> int_df
   int_df %>% 
     extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
 }
@@ -514,9 +534,11 @@ tidy_df <- function(int_df) {
 #import_alignment(empirical_files[1]) %>% View()
 tibble(filename = empirical_files) %>% 
   extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
-  mutate(raw_data = map(filename, import_alignment),
-         long_data = map(raw_data, aa_string_to_vect),
-         tidy_data = map(long_data, tidy_df)) %>% 
+  mutate(
+    raw_data = map(filename, import_alignment),
+    long_data = map(raw_data, aa_string_to_vect),
+    tidy_data = map(long_data, tidy_df)
+  ) %>% 
   select(-filename, -raw_data, -long_data) %>% 
   unnest(cols = tidy_data) -> alignments_emp
 
@@ -552,9 +574,11 @@ alignments_emp %>%
   select(-data) %>% 
   unnest(cols = counts) -> site_aa_count_emp
 
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 
-                              'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
-                           count = rep(0, 20))
+empty_counts <- tibble(
+  aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 
+         'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'),
+  count = rep(0, 20)
+)
 
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
@@ -721,8 +745,10 @@ chi_square_protein <- function(protein_df) {
     nest(data = c(aa, count, k, rel_count, ln_count, slope, 
                   est_dist, est_rel,est_count)) %>% 
     ungroup() %>% 
-    mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
-           p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+    mutate(
+      chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+      p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))
+    ) %>% 
     select(-data) %>% 
     mutate(p.adjusted = p.adjust(p_value, method = "fdr"))
   
@@ -811,40 +837,18 @@ rpie <- 1
 rlabel_out <- 1.05 * rpie
 rlabel_in <- 0.6 * rpie
 
-tidy_results$alignment_type <- recode(tidy_results$alignment_type, 
-                                      result_sim = "Simulated (all)", 
-                                      result_emp = "Empirical",
-                                      result_sim_partial = "Simulated")
+tidy_results$alignment_type <- recode(
+  tidy_results$alignment_type, 
+  result_sim = "Simulated (all)", 
+  result_emp = "Empirical",
+  result_sim_partial = "Simulated"
+)
 tidy_results %>% 
   extract(protein, "protein", "(.*)_", remove = T) -> tidy_results
 
 tidy_results$result %>% 
   replace_na("NA") -> tidy_results$result
 myfillcolors <- c("fail" = "#E69F00", "pass" = "#0072B2", "NA" = "#999999")
-
-# tidy_results %>% 
-#   filter(protein == "1B4T") %>% 
-#   ggplot() +
-#   geom_arc_bar(
-#     aes(
-#       x0 = 0, y0 = 0, r0 = 0, r = rpie,
-#       start = start_angle, end = end_angle, fill = result
-#     ),
-#     color = "white"
-#   ) +
-#   coord_fixed() +
-#   facet_row(vars(alignment_type)) +
-#   geom_text(
-#     aes(
-#       x = rlabel_in * sin(mid_angle),
-#       y = rlabel_in * cos(mid_angle),
-#       label = count
-#     ),
-#     size = 14/.pt, # use 14 pt font size
-#     color = "black"
-#   ) +
-#   theme_map() +
-#   scale_fill_manual(values = myfillcolors)
 
 tidy_results %>% 
   filter(protein == "1B4T" | protein == "1CI0" | protein == "1EFV" |
@@ -858,15 +862,22 @@ tidy_results1 %>%
   ggplot() +
   geom_arc_bar(
     aes(
-      x0 = 0, y0 = 0, r0 = 0, r = rpie,
-      start = start_angle, end = end_angle, fill = result
+      x0 = 0, 
+      y0 = 0, 
+      r0 = 0, 
+      r = rpie,
+      start = start_angle, 
+      end = end_angle, 
+      fill = result
     ),
     color = "white"
   ) +
   scale_fill_manual(values = myfillcolors) +
   coord_fixed() +
-  facet_grid(vars(alignment_type), 
-             vars(protein)) +
+  facet_grid(
+    vars(alignment_type), 
+    vars(protein)
+  ) +
   theme_map() +
   labs(fill = "Result") +
   theme(legend.position = "bottom") -> fig4
@@ -880,15 +891,22 @@ tidy_results2 %>%
   ggplot() +
   geom_arc_bar(
     aes(
-      x0 = 0, y0 = 0, r0 = 0, r = rpie,
-      start = start_angle, end = end_angle, fill = result
+      x0 = 0, 
+      y0 = 0, 
+      r0 = 0, 
+      r = rpie,
+      start = start_angle, 
+      end = end_angle, 
+      fill = result
     ),
     color = "white"
   ) +
   scale_fill_manual(values = myfillcolors) +
   coord_fixed() +
-  facet_grid(vars(alignment_type), 
-             vars(protein)) +
+  facet_grid(
+    vars(alignment_type), 
+    vars(protein)
+  ) +
   theme_map() +
   labs(fill = "Result") +
   theme(legend.position = "bottom") -> figs2

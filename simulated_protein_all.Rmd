@@ -1,7 +1,7 @@
 ---
 title: "Simulated protein alignments"
 author: "Mackenzie Johnson"
-date: "10/31/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -43,9 +43,17 @@ tidy_alignments <- function(alignment) {
 }
 
 alignments <- tibble(filename = simulated_files) %>%
-  extract(filename, "protein", "results_(.*)_evolved_split", remove = FALSE) %>%
+  extract(
+    filename, 
+    "protein", 
+    "results_(.*)_evolved_split", 
+    remove = FALSE
+  ) %>%
   mutate(
-    raw_data = map(filename, function(x) read_csv(x, col_types = cols(.default = "c"))),
+    raw_data = map(
+      filename, 
+      function(x) read_csv(x, col_types = cols(.default = "c"))
+    ),
     alignment = map(raw_data, tidy_alignments)
   ) %>%
   select(-raw_data, -filename) %>%
@@ -72,9 +80,12 @@ alignments %>%
   unnest(cols = counts) -> site_aa_count
 
 # add unobserved amino acids to counts
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P',
-                              'Q', 'R', 'S', 'T', 'V', 'W', 'Y'), 
-                       count = rep(0, 20))
+empty_counts <- tibble(
+  aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 
+         'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 
+         'W', 'Y'),
+  count = rep(0, 20)
+)
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
 count_zero_aa_site <- function(site_df) {
@@ -181,8 +192,10 @@ fit_lm_protein <- function(protein_df) {
   
   protein_df %>% 
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
-    mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
+    mutate(
+      fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
+      slope = map_dbl(fit, ~ (.)$coefficients[1])
+    ) %>% 
     select(-data, -fit)
   
 }
@@ -239,8 +252,10 @@ chi_square_protein <- function(protein_df) {
     nest(data = c(aa, count, k, rel_count, ln_count, slope, 
                   est_dist, est_rel,est_count)) %>% 
     ungroup() %>% 
-    mutate(chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
-         p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))) %>% 
+    mutate(
+      chisq = map(data, ~ sum(((.$count - .$est_count)^2)/.$est_count)),
+      p_value = map_dbl(chisq, ~ pchisq(., 18, lower.tail=FALSE))
+    ) %>% 
     select(-data) %>% 
     mutate(p.adjusted = p.adjust(p_value, method = "fdr"))
   
@@ -342,8 +357,10 @@ neff <- function(lambda_inv) {
   exp(-sum(pi*log(pi)))
 }
 
-df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff, 
-                                                              numeric(1)))
+df_theory <- data.frame(
+  lambda_inv = (0:-100)/10, 
+  ne = vapply((0:-100)/10, neff, numeric(1))
+)
 ```
 
 
@@ -360,14 +377,15 @@ ggplot(gam_v_effaa,
        aes(x = eff_aa, 
            y = -1/slope)) +
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory,
-            aes(ne, -1*lambda_inv),
-            inherit.aes = FALSE,
-            size = 1) +
+  geom_line(
+    data = df_theory,
+    aes(ne, -1*lambda_inv),
+    inherit.aes = FALSE,
+    size = 1
+  ) +
   facet_wrap(vars(protein)) +
   labs(
     x = "Effective number of amino acids *n*<sub>eff</sub>", 
-    #y = expression(~lambda^-1)
     y = "Fitting parameter &lambda;<sup>-1</sup>",
     color = "Result"
   ) +

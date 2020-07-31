@@ -1,7 +1,7 @@
 ---
 title: "Simulated protein alignment"
 author: "Mackenzie Johnson"
-date: "10/31/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -47,10 +47,11 @@ tidy_align %>%
   group_by(site, aa) %>% 
   summarize(count = n()) -> site_aa_count
 
-empty_counts <- tibble(aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 
-                              'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 
-                              'T', 'V', 'W', 'Y'), 
-                           count = rep(0, 20))
+empty_counts <- tibble(
+  aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I','K', 'L', 
+         'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'),
+  count = rep(0, 20)
+)
 
 # 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
 count_by_site <- function(site_df) {
@@ -155,8 +156,6 @@ chisq_results$chisq <- as.numeric(chisq_results$chisq)
 #chisq1 <- sum((df1$count - df1$est_count)^2/df1$est_count)
 #pchisq(chisq1, 18, lower.tail = FALSE)
 
-
-
 ```
 
 
@@ -168,9 +167,11 @@ ordered_count %>%
   geom_bar(aes(y = count), fill = "grey", stat='identity') +
   geom_point(aes(y = est_count, color = "violetred")) +
   geom_line(aes(y = est_count, color = "violetred"), size = 1) +
-  scale_color_manual(name = "distribution",
-                     values = c("grey" = "grey", "violetred" = "violetred"),
-                     labels = c("actual", "estimated"))  +
+  scale_color_manual(
+    name = "distribution",
+    values = c("grey" = "grey", "violetred" = "violetred"),
+    labels = c("actual", "estimated")
+  )  +
   scale_x_continuous(
     breaks = c(0, 5, 10, 15), 
     expand = c(0, 0)

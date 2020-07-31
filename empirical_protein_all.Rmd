@@ -1,7 +1,7 @@
 ---
 title: "Empirical protein alignments"
 author: "Mackenzie Johnson"
-date: "10/31/2019"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 ---
 
@@ -27,7 +27,11 @@ theme_set(theme_cowplot())
 Read in and reformat data 
 ```{r, message=FALSE}
 # read in all .csv files in /data/real/
-empirical_files <- dir("data/real", pattern = "*_Aligned_Sequences.fasta", full.names = T)
+empirical_files <- dir(
+  "data/real", 
+  pattern = "*_Aligned_Sequences.fasta", 
+  full.names = T
+)
 
 # import alignment
 import_alignment <- function(filename) {
@@ -53,17 +57,28 @@ aa_string_to_vect <- function(real_align) {
 tidy_df <- function(int_df) {
   int_df %>%
     mutate(num_seq = seq(1:nrow(int_df))) %>% 
-    pivot_longer(-num_seq, names_to = "site_raw", values_to = "aa") -> int_df
+    pivot_longer(
+      -num_seq,
+      names_to = "site_raw",
+      values_to = "aa"
+    ) -> int_df
   int_df %>% 
     extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
 }
 
 #import_alignment(empirical_files[1]) %>% View()
 tibble(filename = empirical_files) %>% 
-  extract(filename, "protein", "data/real/(.*)_A", remove = FALSE) %>% 
-  mutate(raw_data = map(filename, import_alignment),
-         long_data = map(raw_data, aa_string_to_vect),
-         tidy_data = map(long_data, tidy_df)) %>% 
+  extract(
+    filename, 
+    "protein", 
+    "data/real/(.*)_A", 
+    remove = FALSE
+  ) %>% 
+  mutate(
+    raw_data = map(filename, import_alignment),
+    long_data = map(raw_data, aa_string_to_vect),
+    tidy_data = map(long_data, tidy_df)
+  ) %>% 
   select(-filename, -raw_data, -long_data) %>% 
   unnest(cols = tidy_data) -> alignments
 
@@ -337,14 +352,17 @@ add_eff_aa <- function(protein_df) {
   
   protein_df %>% 
     group_by(site) %>% 
-    summarize(entropy = -sum(flnf),
-              eff_aa = exp(entropy),
-              n = length(unique(aa)))
+    summarize(
+      entropy = -sum(flnf),
+      eff_aa = exp(entropy),
+      n = length(unique(aa))
+    )
   
 }
 
 site_aa_freq %>% 
-  nest(data = c(site, aa, count, k, rel_count, ln_count, frequency, flnf)) %>% 
+  nest(data = c(site, aa, count, k, rel_count, 
+                ln_count, frequency, flnf)) %>% 
   mutate(eff_aa = map(data, add_eff_aa)) %>% 
   select(-data) %>% 
   unnest(cols = eff_aa) -> eff_aa_all
@@ -372,8 +390,11 @@ neff <- function(lambda_inv) {
   exp(-sum(pi*log(pi)))
 }
 
-df_theory <- data.frame(lambda_inv = (0:-100)/10, ne = vapply((0:-100)/10, neff, 
-                                                              numeric(1)))
+df_theory <- data.frame(
+  lambda_inv = (0:-100)/10, 
+  ne = vapply((0:-100)/10, neff, numeric(1))
+)
+
 ```
 
 
@@ -389,10 +410,12 @@ ggplot(gam_v_effaa,
        aes(x = eff_aa, 
            y = -1/slope)) +
   geom_point(aes(color = result)) +
-  geom_line(data = df_theory,
-            aes(ne, -1*lambda_inv),
-            inherit.aes = FALSE,
-            size = 1) +
+  geom_line(
+    data = df_theory,
+    aes(ne, -1*lambda_inv),
+    inherit.aes = FALSE,
+    size = 1
+  ) +
   facet_wrap(vars(protein)) +
   labs(
     x = "Effective number of amino acids *n*<sub>eff</sub>", 
