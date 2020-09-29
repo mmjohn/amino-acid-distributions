@@ -181,7 +181,7 @@ ordered_count %>%
     expand = c(0, 0),
     limits = c(0, 108)
   ) +
-  labs(x = "Amino acids ranked, *k*", y = "Count") +
+  labs(x = "Amino acids ranked, *i*", y = "Count") +
   theme(
     legend.position = "none",
     axis.title.x = element_markdown()
