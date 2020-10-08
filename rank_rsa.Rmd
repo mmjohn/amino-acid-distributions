@@ -12,3 +12,412 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Analysis of amino acid identities occupying rank 0 by RSA
 
 RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Figure #.
+
+```{r, message=FALSE}
+# load packages
+library(tidyverse)
+library(stringr)
+library(cowplot)
+library(broom)
+library(Biostrings)
+
+```
+
+Read in and extract RSA data:
+```{r, message=FALSE}
+# read in all .dat files in /data/real/
+empirical_files <- dir(
+  "data/real", 
+  pattern = "*.dat", 
+  full.names = T
+)
+
+# read in all .dat files in /data/simulated/
+simulated_files <- dir(
+  "data/simulated", 
+  pattern = "*_evolved.dat", 
+  full.names = T
+)
+
+# function to extract rsa values from empirical and simulated alignment
+extr_rsa <- function(filename){
+  read_delim(
+    filename, 
+    delim = " ",
+    col_names = c(
+      "py_index", "site0", "RSA", "aa1", "aa2", "aa3", 
+      "aa4", "aa5", "aa6", "aa7", "aa8", "aa9", "aa10",
+      "aa11", "aa12", "aa13", "aa14", "aa15", "aa16",
+      "aa17", "aa18", "aa19", "aa20"
+    ),
+    skip = 1
+  ) %>% select(site0, RSA) 
+}
+
+# extract rsa values for sites in all empirical proteins
+protein_rsa <- tibble(filename_emp = empirical_files) %>%
+  extract(
+    filename_emp, 
+    "protein", 
+    "array_(.*).dat", 
+    remove = FALSE
+  ) %>% 
+  mutate(
+    rsa_emp = map(filename_emp, extr_rsa)
+  ) %>%
+  select(-filename_emp) %>%
+  unnest(cols = rsa_emp) %>% 
+  mutate(site = site0+1) %>% 
+  select(-site0)
+
+# extract rsa values for sites in all simulated proteins
+protein_rsa2 <- tibble(filename_sim = simulated_files) %>%
+  extract(
+    filename_sim, 
+    "protein", 
+    "array_(.*)_evolved.dat", 
+    remove = FALSE
+  ) %>% 
+  mutate(
+    rsa_sim = map(filename_sim, extr_rsa)
+  ) %>%
+  select(-filename_sim) %>%
+  unnest(cols = rsa_sim) %>% 
+  mutate(site = site0+1) %>% 
+  select(-site0)
+
+# combine rsa data frames (note RSA_emp = RSA_sim bc they were calculated on PDB sequence)
+protein_rsa <- rename(protein_rsa, RSA_emp = RSA)
+protein_rsa2 <- rename(protein_rsa2, RSA_sim = RSA)
+protein_rsa_full <- full_join(protein_rsa, protein_rsa2)
+
+rm(protein_rsa, protein_rsa2, empirical_files, simulated_files)
+
+```
+
+
+Read in empirical alignments and extract most abundant amino acid (rank 0):
+```{r, message=FALSE}
+# read in all .csv files in /data/real/
+empirical_files_ali <- dir(
+  "data/real", 
+  pattern = "*_Aligned_Sequences.fasta", 
+  full.names = T
+)
+
+# import alignment
+import_alignment <- function(filename) {
+  
+  fasta_file <- readAAStringSet(filename, format = "fasta")
+  seq_name = names(fasta_file)
+  aa_seq = paste(fasta_file)
+  seq_num = seq(1:length(seq_name))
+  real_align <- data.frame(seq_num, aa_seq, stringsAsFactors = F)
+  
+}
+
+# change sequences from strings into character vectors
+aa_string_to_vect <- function(real_align) {
+
+  as.data.frame(strsplit(real_align$aa_seq, split = ""), 
+                row.names = NULL) -> int_df
+  as.data.frame(t(int_df), row.names = NULL) -> int_df
+
+}
+
+# tidy data frame
+tidy_df <- function(int_df) {
+  int_df %>%
+    mutate(num_seq = seq(1:nrow(int_df))) %>% 
+    pivot_longer(
+      -num_seq,
+      names_to = "site_raw",
+      values_to = "aa"
+    ) -> int_df
+  int_df %>% 
+    extract(site_raw, "site", "V(.*)", remove = TRUE) -> int_df
+}
+
+#import_alignment(empirical_files[1]) %>% View()
+tibble(filename = empirical_files_ali) %>% 
+  extract(
+    filename, 
+    "protein", 
+    "data/real/(.*)_A", 
+    remove = FALSE
+  ) %>% 
+  mutate(
+    raw_data = map(filename, import_alignment),
+    long_data = map(raw_data, aa_string_to_vect),
+    tidy_data = map(long_data, tidy_df)
+  ) %>% 
+  select(-filename, -raw_data, -long_data) %>% 
+  unnest(cols = tidy_data) -> alignments
+
+# replace undefined aas
+alignments$site <- as.numeric(alignments$site)
+
+levels(alignments$aa) # "X" = any aa, "B" = N or D, "Z" = Q or D
+
+alignments$aa <- recode(alignments$aa, X = "-", B = "N", Z = "Q")
+
+levels(alignments$aa)
+
+alignments$aa <- as.character(alignments$aa)
+
+# determine the number of each AA at each site
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
+
+  }
+
+alignments %>%
+  nest(data = c(num_seq, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count
+
+empty_counts <- tibble(
+  aa = c(
+    'A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 
+    'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y'
+  ), 
+  count = rep(0, 20)
+)
+
+
+# 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
+count_zero_aa_site <- function(site_df) {
+  
+  site_df %>% 
+    group_by(aa) %>% 
+    summarize(count = n()) -> counts
+  full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
+}
+
+# 3. Apply to all proteins
+alignments %>%
+  nest(data = c(num_seq, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count
+
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
+all_count %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count
+
+# EXCLUDE all '-' entries/gaps in alignment
+ordered_count %>%
+  filter(aa != "-") -> no_gaps
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(0:19))
+  
+}
+
+no_gaps %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count
+
+ordered_count %>% 
+  filter(k == 0) %>% 
+  select(protein, site, aa) -> rank_aa_emp
+
+rm(alignments, empirical_files_ali, all_count, empty_counts,
+   no_gaps, site_aa_count, aa_string_to_vect, count_aa,
+   count_zero_aa_protein, count_zero_aa_site, import_alignment,
+   number_aa, order_aa, tidy_df, ordered_count)
+
+```
+
+
+Read in simulated alignments and extract most adundant amino acid (rank 0):
+```{r, message=FALSE}
+# read in all .csv files in /data/simulated/
+simulated_files_ali <- dir(
+  "data/simulated", 
+  pattern = "*.csv", 
+  full.names = TRUE
+)
+
+# tidy individual alignments
+tidy_alignments <- function(alignment) {
+  
+  alignment %>% 
+    mutate(sequence = as.numeric(1:nrow(alignment)) ) %>% 
+    gather(key = "site", value = "aa", 1:ncol(alignment)) %>%
+    mutate(site = as.numeric(site))
+
+}
+
+alignments <- tibble(filename = simulated_files_ali) %>%
+  extract(
+    filename, 
+    "protein", 
+    "results_(.*)_evolved_split", 
+    remove = FALSE
+  ) %>%
+  mutate(
+    raw_data = map(
+      filename, 
+      function(x) read_csv(x, col_types = cols(.default = "c"))
+    ),
+    alignment = map(raw_data, tidy_alignments)
+  ) %>%
+  select(-raw_data, -filename) %>%
+  unnest(cols = alignment)
+
+# determine the number of each AA at each site
+count_aa <- function(protein_alignment) {
+  
+  protein_alignment %>%
+    group_by(site, aa) %>% 
+    summarize(count = n())
+
+  }
+
+alignments %>%
+  nest(data = c(sequence, site, aa)) %>% 
+  mutate(counts = map(data, count_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = counts) -> site_aa_count
+
+# add unobserved amino acids to counts
+empty_counts <- tibble(
+  aa = c('A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 
+         'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 
+         'W', 'Y'),
+  count = rep(0, 20)
+)
+
+# 1. First write a function that can take a data frame with amino acids at one site, and return a data frame with counts, including zeros.
+count_zero_aa_site <- function(site_df) {
+  
+  site_df %>% 
+    group_by(aa) %>% 
+    summarize(count = n()) -> counts
+  full_join(counts, anti_join(empty_counts, counts, by = 'aa'))
+
+  }
+
+# 2. Function to call that function for each protein.
+count_zero_aa_protein <- function(protein_df) {
+  
+  protein_df %>%
+    nest(data = -site) %>%
+    mutate(counts = map(data, count_zero_aa_site)) %>%
+    select(-data) %>%
+    unnest(cols = counts)
+
+}
+
+# 3. Apply to all proteins
+alignments %>%
+  nest(data = c(sequence, site, aa)) %>%
+  mutate(all_counts = map(data, count_zero_aa_protein)) %>%
+  select(-data) %>%
+  unnest(cols = all_counts) -> all_count
+
+# USING ONLY OBSERVED AA
+# order aa by relative frequency
+order_aa <- function(protein_df) {
+  
+  protein_df %>%
+    group_by(site) %>% 
+    arrange(desc(count), .by_group = T)
+  
+}
+
+all_count %>%
+  nest(data = c(site, aa, count)) %>% 
+  mutate(ordered_count = map(data, order_aa)) %>%
+  select(-data) %>% 
+  unnest(cols = ordered_count) -> ordered_count
+
+# make the categorical variable (aa) numerical (k) by numbering aa's 1-20 in order of freq
+number_aa <- function(protein_df) {
+  
+  protein_df %>% 
+    group_by(site) %>% 
+    mutate(k = as.numeric(0:19))
+    #mutate(k = as.numeric(1:20))
+  
+}
+
+ordered_count %>% 
+  nest(data = c(site, aa, count)) %>% 
+  mutate(add_k = map(data, number_aa)) %>% 
+  select(-data) %>% 
+  unnest(cols = add_k) -> ordered_count
+
+ordered_count %>% 
+  filter(k == 0) %>% 
+  select(protein, site, aa) -> rank_aa_sim
+
+rm(alignments, all_count, empty_counts, site_aa_count, 
+   ordered_count, tidy_alignments, count_zero_aa_protein,
+   count_zero_aa_site, count_aa, number_aa, order_aa, 
+   simulated_files_ali)
+
+```
+
+Combine RSA and aa data:
+```{r, message=FALSE}
+colnames(rank_aa_emp)[3] <- "aa_emp"
+colnames(rank_aa_sim)[3] <- "aa_sim"
+
+ranked_aa <- left_join(rank_aa_sim, rank_aa_emp) 
+
+all_data <- full_join(ranked_aa, protein_rsa_full)
+
+# classify sites by location within structure based on RSA values
+all_data %>% 
+  mutate(
+    site_location = case_when(
+      RSA_emp < 0.05 ~ "buried",
+      RSA_emp > 0.25 ~ "exposed",
+      TRUE ~ "intermediate"
+    )
+  ) -> all_data
+
+all_data %>% 
+  group_by(site_location) %>% 
+  summarise(count = n())
+
+#
+
+```
+
