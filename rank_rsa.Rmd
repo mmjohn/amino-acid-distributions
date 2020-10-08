@@ -1,0 +1,14 @@
+---
+title: "Rank 0 amino acids by RSA"
+author: "Mackenzie Johnson"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Analysis of amino acid identities occupying rank 0 by RSA
+
+RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Figure #.
