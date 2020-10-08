@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Analysis of amino acid identities occupying rank 0 by RSA
 
-RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Figure #.
+RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Supplementary Figure 4.
 
 ```{r, message=FALSE}
 # load packages
@@ -407,9 +407,9 @@ all_data <- full_join(ranked_aa, protein_rsa_full)
 all_data %>% 
   mutate(
     site_location = case_when(
-      RSA_emp < 0.05 ~ "buried",
-      RSA_emp > 0.25 ~ "exposed",
-      TRUE ~ "intermediate"
+      RSA_emp < 0.05 ~ "Buried",
+      RSA_emp > 0.25 ~ "Exposed",
+      TRUE ~ "Intermediate"
     )
   ) -> all_data
 
@@ -417,7 +417,79 @@ all_data %>%
   group_by(site_location) %>% 
   summarise(count = n())
 
-#
+# turn aa to factors, set levels based on kyte doolittle hydrophobicity scale
+all_data$aa_emp <- factor(
+  all_data$aa_emp,
+  levels = c(
+    'I', 'V', 'L', 'F', 'C', 'M', 'A', 'G', 'T', 
+    'S', 'W', 'Y', 'P', 'H', 'E', 'Q', 'D', 'N',
+    'K', 'R'
+  )
+)
 
+all_data$aa_sim <- factor(
+  all_data$aa_sim,
+  levels = c(
+    'I', 'V', 'L', 'F', 'C', 'M', 'A', 'G', 'T', 
+    'S', 'W', 'Y', 'P', 'H', 'E', 'Q', 'D', 'N',
+    'K', 'R'
+  )
+)
+
+all_data %>% 
+  group_by(site_location, aa_sim) %>% 
+  summarise(count = n()) -> summary1
+
+colnames(summary1) <- c("site_location", "aa", "simulated")
+
+all_data %>% 
+  group_by(site_location, aa_emp) %>% 
+  summarise(count = n()) -> summary2
+
+colnames(summary2) <- c("site_location", "aa", "empirical")
+
+plot_df <- full_join(summary1, summary2)
+
+plot_df %>% 
+  pivot_longer(
+    cols = c(simulated, empirical),
+    names_to = "type",
+    values_to = "count"
+  ) -> plot_df
+
+plot_df$site_location <- factor(
+  plot_df$site_location,
+  levels = c("Buried", "Intermediate", "Exposed"),
+  ordered = TRUE
+)
+
+plot_df %>% 
+  group_by(site_location, type) %>% 
+  mutate(freq = count/sum(count)) -> plot_df
+
+```
+
+
+Supplementary Figure 4:
+```{r, message=FALSE}
+plot_df %>% 
+  ggplot(aes(x = aa, y = freq, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_grid(vars(site_location)) +
+  scale_fill_manual(
+    name = "Alignment",
+    values = c("#CC79A7","#F0E442"),   # #009E73
+    labels = c("Empirical", "Simulated")
+  ) +
+  labs(x = "Amino acids", y = "Frequency") +
+  theme_cowplot() -> figs4
+
+figs4
+
+save_plot("figures4.pdf", figs4, ncol = 1, nrow = 1, 
+          base_height = 3.71,
+          base_asp = 1.618, base_width = NULL)
+
+  
 ```
 
