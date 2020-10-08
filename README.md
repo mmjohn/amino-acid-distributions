@@ -18,5 +18,5 @@ Figures from the paper are produced by the following files:
 
 `fitting_parameters_all.Rmd` - Supplementary figure 3
 
-
+`rank_rsa.Rmd` - Supplementary figure 4
 
