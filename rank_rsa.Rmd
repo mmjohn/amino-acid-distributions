@@ -55,7 +55,7 @@ extr_rsa <- function(filename){
 }
 
 # extract rsa values for sites in all empirical proteins
-protein_rsa <- tibble(filename_emp = empirical_files) %>%
+protein_rsa1 <- tibble(filename_emp = empirical_files) %>%
   extract(
     filename_emp, 
     "protein", 
@@ -87,11 +87,11 @@ protein_rsa2 <- tibble(filename_sim = simulated_files) %>%
   select(-site0)
 
 # combine rsa data frames (note RSA_emp = RSA_sim bc they were calculated on PDB sequence)
-protein_rsa <- rename(protein_rsa, RSA_emp = RSA)
-protein_rsa2 <- rename(protein_rsa2, RSA_sim = RSA)
-protein_rsa_full <- full_join(protein_rsa, protein_rsa2)
+colnames(protein_rsa1) <- c("protein", "RSA_emp", "site")
+colnames(protein_rsa2) <- c("protein", "RSA_sim", "site")
+protein_rsa_full <- full_join(protein_rsa1, protein_rsa2)
 
-rm(protein_rsa, protein_rsa2, empirical_files, simulated_files)
+rm(protein_rsa1, protein_rsa2, empirical_files, simulated_files)
 
 ```
 
@@ -481,8 +481,11 @@ plot_df %>%
     values = c("#CC79A7","#F0E442"),   # #009E73
     labels = c("Empirical", "Simulated")
   ) +
+  scale_y_continuous(expand = c(0,0)) +
+  #scale_x_discrete(expand = c(0.1,0.1)) +
   labs(x = "Amino acids", y = "Frequency") +
-  theme_cowplot() -> figs4
+  theme_cowplot() +
+  panel_border() -> figs4
 
 figs4
 
