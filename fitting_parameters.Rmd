@@ -353,59 +353,78 @@ observed_aa_mod %>%
 
 3 parameter fit - ridge regression
 ```{r}
-# # use ridge regression instead
-# #install.packages("glmnet", repos = "https://cran.us.r-project.org")
-# library(glmnet)
-# 
-# # example of use and finding lambda
-# data(QuickStartExample)
-# fit = glmnet(x, y)
-# plot(fit)
-# cvfit = cv.glmnet(x, y)
-# plot(cvfit)
-# cvfit$lambda.min
-# 
-# # figure out a good lambda value to use
-# grid <- 10^seq(10, -2, length = 100)
-# 
-# observed_aa_mod %>% 
-#   filter(site == 1) -> one_site_example
-# 
-# x_site <- tibble(k = one_site_example$k) %>% 
-#   mutate(k2 = k*k)
-# x_site <- as.matrix(x_site)
-# y_site <- one_site_example$ln_count
-# 
-# fit <- glmnet(x_site, y_site)
-# plot(fit)
-# 
-# fit = glmnet(
-#   x_site, 
-#   y_site, 
-#   alpha = 0, # for ridge regression
-#   lambda = grid
-# )
-# 
-# cvfit <- cv.glmnet(x_site, y_site)
-# cvfit$lambda.min
-# 
-# # lambda value across sites - use one lambda values
-# # some lambda value should recreate what you'd get from other model
-# # relationship between optimal lambda and neff?
-# 
-# plot(fit)
-# 
-# # apply to all sites
-# observed_aa_mod %>% 
-#   nest(data = -site) %>%
-#   mutate(
-#     fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
-#     intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
-#     slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
-#     sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
-#   ) %>% 
-#   select(-data, -fit) -> observed_fits_3
-# 
+# use ridge regression instead
+#install.packages("glmnet", repos = "https://cran.us.r-project.org")
+library(glmnet)
+
+# prep dataframe for use in glmnet
+observed_aa_mod %>% 
+  mutate(k2 = k*k) -> observed_aa_mod
+
+# find a good lambda value to use
+find_ridge_lambda <- function(site_df){
+  
+  cv.glmnet(
+    cbind(site_df$k, site_df$k2),
+    site_df$ln_count,
+    alpha = 0,    # alpha=0 for ridge regression
+    grouped = FALSE # necessary bc of limited # of observations
+  ) -> cvfit
+  
+  cvfit$lambda.min -> ridge_lambda
+  
+  return(ridge_lambda)
+  
+}
+
+# get rid of sites with only one unique aa
+# cv.glmnet cannot fit these sites
+# note: this code sometimes won't fit sites with only 2 unique
+# amino acids observed
+observed_aa_mod %>% 
+  group_by(site) %>% 
+  filter(k == 1 & count == 0.000001) %>% 
+  select(site) -> conserved_sites
+
+observed_aa_mod %>% 
+  filter(site %in% conserved_sites$site == FALSE) %>% 
+  nest(data = -site) %>% 
+  mutate(
+    optimal_ridge_lambda = map(data, find_ridge_lambda)
+  ) %>% unnest(cols = data) -> observed_aa_mod
+
+observed_aa_mod$optimal_ridge_lambda <- as.numeric(observed_aa_mod$optimal_ridge_lambda)
+
+ggplot(
+  observed_aa_mod, 
+  aes(x = optimal_ridge_lambda)
+) + geom_density()
+
+summary(observed_aa_mod$optimal_ridge_lambda)
+
+# lambda value across sites - use one lambda values
+# some lambda value should recreate what you'd get from other model
+# relationship between optimal lambda and neff?
+
+fit <- glmnet(
+  cbind(one_site_example$k, one_site_example$k2), 
+  one_site_example$ln_count, 
+  alpha = 0 # alpha = 0 for ridge
+) 
+
+plot(fit)
+
+# apply to all sites
+observed_aa_mod %>%
+  nest(data = -site) %>%
+  mutate(
+    fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
+    intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
+    slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
+    sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
+  ) %>%
+  select(-data, -fit) -> observed_fits_3
+
 
 ```
 
