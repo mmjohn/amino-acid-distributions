@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Varying the number of parameters used for fitting amino acid distributions
 
-This is the RMarkdown document used to produce Figure 6. It compares results for fitting distributions with a different number of parameters.
+This is the RMarkdown document used to produce Figure 6, Supplementary Figure 5, and ###. It compares results for fitting distributions with a different number of parameters.
 
 Load necessary packages
 ```{r, message=FALSE}
@@ -227,7 +227,30 @@ observed_aa %>%
 ```
 
 
-1 parameter fit
+Add constant to all
+```{r}
+# add a small constant to include aa with zero values
+ordered_count %>%
+  mutate(count = count + 0.000001) -> observed_aa_mod
+ordered_count %>%
+  mutate(count_mod = count + 0.000001) -> ordered_count_mod
+
+# count relative to most frequent - rescale to 1 for highly conserved sites
+observed_aa_mod %>%
+  group_by(site) %>%
+  mutate(rel_count = count/max(count)) -> observed_aa_mod
+
+# log-transformed data
+observed_aa_mod %>%
+  mutate(ln_count = log(rel_count)) -> observed_aa_mod
+
+# get rid of old data sets
+rm(alignment, all_count, empty_counts, no_gaps, site_aa_count)
+
+```
+
+
+1 parameter fit - without constant
 ```{r, message=FALSE}
 # fit linear model to normalized, log-transformed data
 # set intercept to 0, only fitting 1 parameter (slope)
@@ -253,8 +276,21 @@ observed_aa %>%
 ```
 
 
+1 parameter fit - with constant
+```{r, message=FALSE}
+# fit linear model to normalized, log-transformed data
+# set intercept to 0, only fitting 1 parameter (slope)
 
-2 parameters fit
+observed_aa_mod %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein_1)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_mod_1
+
+```
+
+
+2 parameters fit - without constant
 ```{r, message=FALSE}
 # fit linear model to normalized, log-transformed data
 # fitting 2 parameters: slope and intercept
@@ -281,47 +317,114 @@ observed_aa %>%
 ```
 
 
-3 parameters fit
+2 parameters fit - with constant
+```{r, message=FALSE}
+# fit linear model to normalized, log-transformed data
+# fitting 2 parameters: slope and intercept
+
+observed_aa_mod %>% 
+  nest(data = c(site, aa, count, k, rel_count, ln_count)) %>% 
+  mutate(fits = map(data, fit_lm_protein_2)) %>% 
+  select(-data) %>% 
+  unnest(cols = fits) -> observed_fits_mod_2
+
+```
+
+
+3 parameters fit - with constant
 ```{r, message=FALSE}
 # fit quadratic model to normalized, log-transformed data
 # fitting 3 parameter: slope, slope^2, intercept
 # use non-linear model, fit to all aa (add small value to zero counts)
 
-# add a small constant to include aa with zero values
-ordered_count %>%
-  mutate(count = count + 0.000001) -> observed_aa_mod
-ordered_count %>%
-  mutate(count_mod = count + 0.000001) -> ordered_count_mod
-
-# count relative to most frequent - rescale to 1 for highly conserved sites
 observed_aa_mod %>%
-  group_by(site) %>%
-  mutate(rel_count = count/max(count)) -> observed_aa_mod
-
-# log-transformed data
-observed_aa_mod %>%
-  mutate(ln_count = log(rel_count)) -> observed_aa_mod 
-
-observed_aa_mod %>% 
   nest(data = -site) %>%
   mutate(
     fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
     intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
     slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
     sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
-  ) %>% 
+  ) %>%
   select(-data, -fit) -> observed_fits_3
 
 
 ```
 
 
-Get estimate counts
+3 parameter fit - ridge regression
+```{r}
+# # use ridge regression instead
+# #install.packages("glmnet", repos = "https://cran.us.r-project.org")
+# library(glmnet)
+# 
+# # example of use and finding lambda
+# data(QuickStartExample)
+# fit = glmnet(x, y)
+# plot(fit)
+# cvfit = cv.glmnet(x, y)
+# plot(cvfit)
+# cvfit$lambda.min
+# 
+# # figure out a good lambda value to use
+# grid <- 10^seq(10, -2, length = 100)
+# 
+# observed_aa_mod %>% 
+#   filter(site == 1) -> one_site_example
+# 
+# x_site <- tibble(k = one_site_example$k) %>% 
+#   mutate(k2 = k*k)
+# x_site <- as.matrix(x_site)
+# y_site <- one_site_example$ln_count
+# 
+# fit <- glmnet(x_site, y_site)
+# plot(fit)
+# 
+# fit = glmnet(
+#   x_site, 
+#   y_site, 
+#   alpha = 0, # for ridge regression
+#   lambda = grid
+# )
+# 
+# cvfit <- cv.glmnet(x_site, y_site)
+# cvfit$lambda.min
+# 
+# # lambda value across sites - use one lambda values
+# # some lambda value should recreate what you'd get from other model
+# # relationship between optimal lambda and neff?
+# 
+# plot(fit)
+# 
+# # apply to all sites
+# observed_aa_mod %>% 
+#   nest(data = -site) %>%
+#   mutate(
+#     fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
+#     intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
+#     slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
+#     sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
+#   ) %>% 
+#   select(-data, -fit) -> observed_fits_3
+# 
+
+```
+
+
+Get estimate counts 
 ```{r, message=FALSE}
-# combine dataframes of fits
+# combine dataframes of fits (no constant for 1 and 2 parameter)
 observed_fits_1 %>%
   full_join(., observed_fits_2, by = c("protein", "site")) %>% 
   full_join(., observed_fits_3, by = "site") -> observed_fits
+
+# combine dataframes of fits (add constant to all)
+observed_fits_mod_1 %>%
+  full_join(., observed_fits_mod_2, by = c("protein", "site")) %>% 
+  full_join(., observed_fits_3, by = "site") -> observed_fits_mod
+
+# get rid of old subsets
+rm(observed_fits_1, observed_fits_2, observed_fits_mod_1, 
+   observed_fits_mod_2, observed_fits_3)
 
 # added rel_count and ln_count to all aa
 ordered_count %>%
@@ -336,16 +439,33 @@ ordered_count %>%
   select(-data) %>% 
   unnest(cols = ln_count) -> ordered_count
 
+# estimate counts with parameters from fit - no constant for 1 and 2 param
 ordered_count %>% 
   left_join(observed_fits, by = c("protein", "site")) %>%
-  mutate(est_dist_1 = slope_1*exp(k*slope_1)) -> ordered_count
-
-ordered_count %>% 
   mutate(
+    est_dist_1 = slope_1*exp(k*slope_1),
     est_dist_2 = slope_2*exp(k*slope_2+intercept_2),
     est_dist_3 = slope_3*exp(k*slope_3 + k*k*sqr_slp_3 + 
                                     intercept_3)
   ) -> ordered_count
+
+# estimate counts with parameters from fit - constant for all
+colnames(observed_fits_mod)[3] <- "slope_1_mod"
+colnames(observed_fits_mod)[4] <- "intercept_2_mod"
+colnames(observed_fits_mod)[5] <- "slope_2_mod"
+
+observed_fits_mod <- observed_fits_mod[1:5]
+
+ordered_count %>% 
+  left_join(
+    observed_fits_mod, 
+    by = c("protein", "site")
+  ) %>%
+  mutate(
+    est_dist_1_mod = slope_1_mod*exp(k*slope_1_mod),
+    est_dist_2_mod = slope_2_mod*exp(k*slope_2_mod+intercept_2_mod)
+  ) -> ordered_count
+
 
 # rescale to compare w raw count
 rescale_est_dist <- function(protein_df) {
@@ -355,12 +475,16 @@ rescale_est_dist <- function(protein_df) {
     mutate(
       est_rel_1 = est_dist_1/sum(est_dist_1),
       est_rel_2 = est_dist_2/sum(est_dist_2),
-      est_rel_3 = est_dist_3/sum(est_dist_3)
+      est_rel_3 = est_dist_3/sum(est_dist_3),
+      est_rel_1_mod = est_dist_1_mod/sum(est_dist_1_mod),
+      est_rel_2_mod = est_dist_2_mod/sum(est_dist_2_mod)
     ) %>% 
     mutate(
       est_count_1 = sum(count)*est_rel_1,
       est_count_2 = sum(count)*est_rel_2,
-      est_count_3 = sum(count)*est_rel_3
+      est_count_3 = sum(count)*est_rel_3,
+      est_count_1_mod = sum(count)*est_rel_1_mod,
+      est_count_2_mod = sum(count)*est_rel_2_mod
     )
   
 }
@@ -370,10 +494,14 @@ ordered_count %>%
                 ln_count, slope_1, intercept_2,
                 slope_2, intercept_3, slope_3,
                 sqr_slp_3, est_dist_1, est_dist_2, 
-                est_dist_3)) %>% 
+                est_dist_3, est_dist_1_mod, 
+                est_dist_2_mod)) %>% 
   mutate(rescaled = map(data, rescale_est_dist)) %>% 
   select(-data) %>% 
   unnest(cols = rescaled) -> ordered_count
+
+# remove duplicate information
+rm(observed_fits, observed_fits_mod)
 
 ```
 
@@ -389,19 +517,28 @@ ordered_count %>%
     chisq_1 = map(data, ~ sum(((.$count - .$est_count_1)^2)/.$est_count_1)),
     chisq_2 = map(data, ~ sum(((.$count - .$est_count_2)^2)/.$est_count_2)),
     chisq_3 = map(data, ~ sum(((.$count - .$est_count_3)^2)/.$est_count_3)),
+    chisq_1_mod = map(data, ~ sum(((.$count - .$est_count_1_mod)^2)/.$est_count_1_mod)),
+    chisq_2_mod = map(data, ~ sum(((.$count - .$est_count_2_mod)^2)/.$est_count_2_mod)),
     p_value_1 = map_dbl(chisq_1, ~ pchisq(., 18, lower.tail=FALSE)),
     p_value_2 = map_dbl(chisq_2, ~ pchisq(., 18, lower.tail=FALSE)),
-    p_value_3 = map_dbl(chisq_3, ~ pchisq(., 18, lower.tail=FALSE))
+    p_value_3 = map_dbl(chisq_3, ~ pchisq(., 18, lower.tail=FALSE)),
+    p_value_1_mod = map_dbl(chisq_1_mod, ~ pchisq(., 18, lower.tail=FALSE)),
+    p_value_2_mod = map_dbl(chisq_2_mod, ~ pchisq(., 18, lower.tail=FALSE)),
   ) %>% 
   select(-data) %>%
   mutate(
     p.adjusted_1 = p.adjust(p_value_1, method= "fdr"),
     p.adjusted_2 = p.adjust(p_value_2, method= "fdr"),
-    p.adjusted_3 = p.adjust(p_value_3, method= "fdr")
+    p.adjusted_3 = p.adjust(p_value_3, method= "fdr"),
+    p.adjusted_1_mod = p.adjust(p_value_1_mod, method= "fdr"),
+    p.adjusted_2_mod = p.adjust(p_value_2_mod, method= "fdr"),
   ) -> chisq_results
 
 chisq_results %>% 
-  select(site, p.adjusted_1, p.adjusted_2, p.adjusted_3) -> chisq_results
+  select(
+    site, p.adjusted_1, p.adjusted_2, p.adjusted_3,
+    p.adjusted_1_mod, p.adjusted_2_mod
+  ) -> chisq_results
 
 pivot_longer(
   chisq_results, 
@@ -427,22 +564,30 @@ chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 ```
 
+
 Chi-squared results based on number of parameters used
 ```{r, message=FALSE}
-# 133 sites; 17 fail (12.8%)
+# 133 sites; 17 fail (12.8%) - NO CONSTANT
 chisq_results %>% 
   filter(parameters == 1 & result == "fail") %>% nrow()
 
-# 133 sites; 34 fail (25.6%)
+# 153 sites; 133 fail (86.9%) - WITH CONSTANT
+chisq_results %>% 
+  filter(parameters == "1_mod" & result == "fail") %>% nrow()
+
+# 133 sites; 34 fail (25.6%) - NO CONSTANT
 chisq_results %>% 
   filter(parameters == 2 & result == "fail") %>% nrow()
 
-# 153 sites; 129 fail (84.3%)
+# 153 sites; 135 fail (88.2%) - WITH CONSTANT
+chisq_results %>% 
+  filter(parameters == "2_mod" & result == "fail") %>% nrow()
+
+# 153 sites; 129 fail (84.3%) - WITH CONSTANT
 chisq_results %>% 
   filter(parameters == 3 & result == "fail") %>% nrow()
 
 ```
-
 
 
 Effective number of amino acids
@@ -467,28 +612,40 @@ ordered_count %>%
   mutate(
     freq_1 = (est_count_1)/sum(est_count_1),
     freq_2 = (est_count_2)/sum(est_count_2),
-    freq_3 = (est_count_3)/sum(est_count_3)
+    freq_3 = (est_count_3)/sum(est_count_3),
+    freq_1_mod = (est_count_1_mod)/sum(est_count_1_mod),
+    freq_2_mod = (est_count_2_mod)/sum(est_count_2_mod),
   ) %>% 
-  select(site, aa, k, freq_1, freq_2, freq_3) -> site_aa_freq_2
+  select(
+    site, aa, k, freq_1, freq_2, freq_3,
+    freq_1_mod, freq_2_mod
+  ) -> site_aa_freq_2
+
 site_aa_freq_2 %>% 
   mutate(
     flnf_1 = freq_1*log(freq_1),
     flnf_2 = freq_2*log(freq_2),
-    flnf_3 = freq_3*log(freq_3)
+    flnf_3 = freq_3*log(freq_3),
+    flnf_1_mod = freq_1_mod*log(freq_1_mod),
+    flnf_2_mod = freq_2_mod*log(freq_2_mod)
   ) %>%
   group_by(site) %>%
   summarize(
     entr_1 = -sum(flnf_1),
     entr_2 = -sum(flnf_2),
     entr_3 = -sum(flnf_3),
+    entr_1_mod = -sum(flnf_1_mod),
+    entr_2_mod = -sum(flnf_2_mod),
     eff_aa_est_1 = exp(entr_1),
     eff_aa_est_2 = exp(entr_2),
-    eff_aa_est_3 = exp(entr_3)
+    eff_aa_est_3 = exp(entr_3),
+    eff_aa_est_1_mod = exp(entr_1_mod),
+    eff_aa_est_2_mod = exp(entr_2_mod)
   ) -> eff_aa_all_est
 
 eff_aa_all_est %>% 
   pivot_longer(
-    c(entr_1, entr_2, entr_3), 
+    c(entr_1, entr_2, entr_3, entr_1_mod, entr_2_mod), 
     names_to = "parameters",
     values_to = "entropy_est"
   ) %>% 
@@ -502,7 +659,10 @@ eff_aa_all_est %>%
   
 eff_aa_all_est %>% 
   pivot_longer(
-    c(eff_aa_est_1, eff_aa_est_2, eff_aa_est_3),
+    c(
+      eff_aa_est_1, eff_aa_est_2, eff_aa_est_3, 
+      eff_aa_est_1_mod, eff_aa_est_2_mod
+    ),
     names_to = "parameter",
     values_to = "eff_aa_est"
   ) %>% 
@@ -518,8 +678,13 @@ full_join(sub1, sub2, by = c("site", "parameters")) -> eff_aa_est
 
 left_join(eff_aa_all, eff_aa_est, by = "site") -> compare_eff_aa
 
+rm(sub1, sub2, site_aa_freq, site_aa_freq_2, 
+   observed_aa, observed_aa_mod, ordered_count, 
+   ordered_count_mod, eff_aa_all_est, eff_aa_all, 
+   eff_aa_est)
 
 ```
+
 
 Find $R^2$ values for each parameter
 ```{r,message=FALSE}
@@ -529,20 +694,31 @@ rsq <- function (x, y) { cor(x, y) ^ 2 }
 compare_eff_aa %>% 
   filter(parameters == 1 & !is.na(eff_aa_est)) -> compare_p1
 
-rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9706805
+rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9706805 - NO CONSTANT 
+
+compare_eff_aa %>% 
+  filter(parameters == "1_mod" & !is.na(eff_aa_est)) -> compare_p1_mod
+
+rsq(compare_p1_mod$eff_aa, compare_p1_mod$eff_aa_est) # 0.7409036 - WITH CONSTANT
 
 compare_eff_aa %>% 
   filter(parameters == 2 & !is.na(eff_aa_est)) -> compare_p2
 
-rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8589123
+rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8589123 - NO CONSTANT
+
+compare_eff_aa %>% 
+  filter(parameters == "2_mod" & !is.na(eff_aa_est)) -> compare_p2_mod
+
+rsq(compare_p2_mod$eff_aa, compare_p2_mod$eff_aa_est) # 0.1839351 - WITH CONSTANT
 
 compare_eff_aa %>% 
   filter(parameters == 3 & !is.na(eff_aa_est)) -> compare_p3
 
-rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.718942
+rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.718942 - WITH CONSTANT
+
+rm(compare_p1, compare_p1_mod, compare_p2, compare_p2_mod, compare_p3)
 
 ```
-
 
 
 Figure 6
@@ -553,18 +729,24 @@ signif(0.8589123, digits = 3)
 signif(0.718942, digits = 3)
 
 dat_text <- data.frame(
-  label = c("*R*<sup>2</sup> = 0.971",
-            "*R*<sup>2</sup> = 0.859",
+  label = c("*R*<sup>2</sup> = 0.971", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
+            "*R*<sup>2</sup> = 0.859", # 0.859 NO CONSTANT, 0.184 WITH CONSTANT
             "*R*<sup>2</sup> = 0.719"),
   parameters = c(1, 2, 3),
   x = c(11.25, 11.25, 11.25),
   y = c(2, 2, 2)
 )
 
+
 left_join(compare_eff_aa, chisq_results) %>% 
   filter(!is.na(result)) -> all_results
 
-ggplot(all_results, 
+all_results %>% 
+  filter(
+    parameters == 1 | parameters == 2 | parameters == 3
+  ) -> all_results_original
+
+ggplot(all_results_original, 
        aes(x=eff_aa, y=eff_aa_est, color = result)) + 
   geom_point() +
   geom_abline(slope = 1, intercept = 0) + 
@@ -599,4 +781,63 @@ save_plot("figure6.png", fig6, ncol = 1, nrow = 1, base_height = 5,
 
 ```
 
+
+Supplementary Figure 5
+```{r}
+dat_text_mod <- data.frame(
+  label = c("*R*<sup>2</sup> = 0.741", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
+            "*R*<sup>2</sup> = 0.184", # 0.859 NO CONSTANT, 0.184 WITH CONSTANT
+            "*R*<sup>2</sup> = 0.719"),
+  parameters = c(1, 2, 3),
+  x = c(11.25, 11.25, 11.25),
+  y = c(2, 2, 2)
+)
+
+all_results %>% 
+  filter(
+    parameters == "1_mod" | parameters == "2_mod" | parameters == 3
+  ) -> all_results_mod
+
+all_results_mod %>% 
+  mutate(parameters = case_when(
+    parameters == "1_mod" ~ "1",
+    parameters == "2_mod" ~ "2",
+    TRUE ~ "3"
+  )) -> all_results_mod
+
+ggplot(all_results_mod, 
+       aes(x=eff_aa, y=eff_aa_est, color = result)) + 
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0) + 
+  labs(
+    x = "*n*<sub>eff</sub> of actual distribution", 
+    y = "*n*<sub>eff</sub> of fit distribution",
+    color = "Result"
+  ) +
+  scale_color_manual(
+    values = c("#E69F00", "#0072B2")
+  ) +
+  #geom_richtext(data = dat_text, aes(label = label)) #+
+  geom_richtext(
+    data = dat_text_mod, 
+    aes(x = x, y = y,label = label),
+    label.color = NA,
+    inherit.aes = FALSE
+  ) +
+  facet_grid(vars(parameters)) + 
+  theme_cowplot(12, rel_small = 1) +
+  panel_border() +
+  background_grid() +
+  theme(
+    axis.title.x = element_markdown(),
+    axis.title.y = element_markdown(),
+    strip.background = element_rect(fill = "gray90")) -> figs5
+
+figs5
+
+save_plot("figures5.png", figs5, ncol = 1, nrow = 1, base_height = 5,
+          base_asp = 1.618, base_width = NULL)
+
+
+```
 
