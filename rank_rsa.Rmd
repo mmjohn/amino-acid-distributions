@@ -481,7 +481,10 @@ plot_df %>%
     values = c("#CC79A7","#F0E442"),   # #009E73
     labels = c("Empirical", "Simulated")
   ) +
-  scale_y_continuous(expand = c(0,0)) +
+  scale_y_continuous(
+    breaks = c(0.00, 0.05, 0.10, 0.15),
+    expand = c(0,0)
+  ) +
   #scale_x_discrete(expand = c(0.1,0.1)) +
   labs(x = "Amino acids", y = "Frequency") +
   theme_cowplot() +
@@ -490,7 +493,7 @@ plot_df %>%
 figs4
 
 save_plot("figures4.pdf", figs4, ncol = 1, nrow = 1, 
-          base_height = 3.71,
+          base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
   
