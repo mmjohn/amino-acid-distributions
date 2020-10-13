@@ -448,6 +448,7 @@ chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 ```
 
+
 Chi-squared results based on number of parameters used
 ```{r, message=FALSE}
 # 133 sites; 17 fail (12.8%)
