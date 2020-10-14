@@ -60,6 +60,7 @@ alignments_sim <- tibble(filename = simulated_files) %>%
 
 ```
 
+
 Sample simulated sequences to match the number of empirical sequences for each protein
 ```{r}
 # 1B4T - 160
@@ -143,8 +144,8 @@ full_join(pro1, pro2) %>%
   full_join(., pro10) -> alignments_sim_partial
 
 rm(pro1, pro2, pro3, pro4, pro5, pro6, pro7, pro8, pro9, pro10)
-```
 
+```
 
 
 Actual distribution - all
@@ -296,9 +297,11 @@ fit_lm_protein <- function(protein_df) {
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
     mutate(
       fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-      slope = map_dbl(fit, ~ (.)$coefficients[1])
+      slope = map_dbl(fit, ~ (.)$coefficients[1]),
+      fit_sum = map(fit, summary),
+      r2 = map_dbl(fit_sum, ~ (.)$adj.r.squared)
     ) %>% 
-    select(-data, -fit)
+    select(-data, -fit, -fit_sum)
   
 }
 
@@ -343,7 +346,6 @@ ordered_count_sim %>%
   
   
 ```
-
 
 
 Estimated distribution - partial
@@ -413,7 +415,6 @@ ordered_count_sim_partial %>%
   select(-data) %>% 
   unnest(cols = rescaled) -> ordered_count_sim_partial
   
-  
 ```
 
 
@@ -440,7 +441,6 @@ ordered_count_sim %>%
   select(-data) %>% 
   unnest(chisq_results) -> chisq_results_sim
 
-
 chisq_results_sim %>%
   mutate(result = "pass") -> chisq_results_sim
 
@@ -451,11 +451,19 @@ chisq_results_sim %>%
 chisq_results_sim$result[chisq_results_sim$p.adjusted < 0.05] <- "fail"
 
 chisq_results_sim %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_sim)
+
 chisq_results_sim$chisq <- as.numeric(chisq_results_sim$chisq)
 
+```
 
+
+$r^2$ to compare distributions - all
+```{r, message=FALSE}
+observed_fits_sim %>% 
+  select(protein, site, r2) -> regression_perform_all
 
 ```
+
 
 
 Chi-squared test to compare distributions - partial
@@ -483,7 +491,24 @@ chisq_results_sim_partial %>%
   nrow()/nrow(chisq_results_sim_partial)
 chisq_results_sim_partial$chisq <- as.numeric(chisq_results_sim_partial$chisq)
 
+```
 
+
+$r^2$ to compare distributions - partial
+```{r, message=FALSE}
+observed_fits_sim_partial %>% 
+  select(protein, site, r2) -> regression_perform_partial
+
+```
+
+
+```{r, message=FALSE}
+rm(alignments_sim, alignments_sim_partial, all_count_sim,
+   all_count_sim_partial, empty_counts, observed_aa_sim, 
+   observed_aa_sim_partial, observed_fits_sim,
+   observed_fits_sim_partial, site_aa_count_sim,
+   site_aa_count_sim_partial, ordered_count_sim,
+   ordered_count_sim_partial)
 
 ```
 
@@ -554,7 +579,6 @@ levels(alignments_emp$aa)
 alignments_emp$aa <- as.character(alignments_emp$aa)
 
 ```
-
 
 
 Actual distribution
@@ -689,8 +713,10 @@ fit_lm_protein <- function(protein_df) {
   protein_df %>% 
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
     mutate(fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-           slope = map_dbl(fit, ~ (.)$coefficients[1])) %>% 
-    select(-data, -fit)
+           slope = map_dbl(fit, ~ (.)$coefficients[1]),
+           fit_sum = map(fit, summary),
+           r2 = map_dbl(fit_sum, ~ (.)$adj.r.squared)) %>% 
+    select(-data, -fit, -fit_sum)
   
 }
 
@@ -775,8 +801,27 @@ chisq_results_emp %>% filter(result == "fail") %>% nrow()/nrow(chisq_results_emp
 
 ```
 
+
+$r^2$ of regression - empirical
+```{r, message=FALSE}
+observed_fits_emp %>% 
+  select(protein, site, r2) -> regression_perform_emp
+
+```
+
+
+```{r, message=FALSE}
+rm(alignments_emp, all_count_emp, empty_counts,
+   empirical_files, simulated_files, no_gaps_emp, 
+   observed_aa_emp, observed_fits_emp,
+   ordered_count_emp, site_aa_count_emp)
+
+```
+
+
+
 ## Comparison across alignments
-Combine results
+Combine $\chi^2$ results
 ```{r, message=FALSE}
 chisq_results_sim %>% 
   mutate(result_sim = result) %>% 
@@ -800,6 +845,7 @@ all_results %>%
 
 
 ```
+
 
 Figure 4
 ```{r}
@@ -848,6 +894,7 @@ tidy_results %>%
 
 tidy_results$result %>% 
   replace_na("NA") -> tidy_results$result
+
 myfillcolors <- c("fail" = "#E69F00", "pass" = "#0072B2", "NA" = "#999999")
 
 tidy_results %>% 
@@ -921,5 +968,70 @@ save_plot("figures2.png", figs2, ncol = 1, nrow = 1, base_height = 5,
 
 ```
 
+
+Combine $r^2$ results
+```{r, message=FALSE}
+
+regression_perform_all %>% 
+  mutate(r2_sim = r2) %>% 
+  select(-r2) -> regression_perform_all
+
+regression_perform_partial %>% 
+  mutate(r2_partial = r2) %>% 
+  select(-r2) -> regression_perform_partial
+
+regression_perform_emp %>% 
+  mutate(r2_emp = r2) %>% 
+  select(-r2) -> regression_perform_emp
+
+full_join(regression_perform_all, regression_perform_partial) %>% 
+  full_join(., regression_perform_emp) -> all_results_r2
+
+all_results_r2 %>% 
+  pivot_longer(c(r2_sim, r2_partial, r2_emp), 
+               names_to = "alignment_type",
+               values_to = "r2") -> all_results_r2
+
+recode(
+  all_results_r2$alignment_type,
+  r2_sim = "Simulated (all)",
+  r2_partial = "Simulated",
+  r2_emp = "Empirical"
+) -> all_results_r2$alignment_type
+
+```
+
+
+Supplementary figure 5
+```{r, message=FALSE}
+library(ggtext)
+
+all_results_r2 %>% 
+  extract(protein, "protein", "(.*)_", remove = T) -> all_results_r2
+
+all_results_r2 %>% 
+  ggplot(aes(x = alignment_type, y = r2)) +
+  geom_boxplot(aes(fill = alignment_type), alpha = 0.5) +
+  #geom_jitter(aes(color = alignment_type)) +
+  facet_wrap(vars(protein)) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    breaks = c(0, .2, .4, .6, .8, 1)
+  ) +
+  coord_flip() +
+  labs(y = "*R*<sup>2</sup>") +
+  theme(
+    axis.title.y = element_blank(),
+    legend.position = "none",
+    axis.title.x = element_markdown()
+  ) +
+  panel_border() -> figs5
+
+figs5
+
+save_plot("figures5.png", figs5, ncol = 1, nrow = 1, base_height = 5,
+          base_asp = 1.618, base_width = NULL)
+
+```
 
 
