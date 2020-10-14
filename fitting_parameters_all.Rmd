@@ -549,6 +549,7 @@ left_join(
 
 ```
 
+
 Find $R^2$ values for each parameter
 ```{r,message=FALSE}
 
@@ -593,7 +594,6 @@ full_join(results_p1, results_p2) %>%
 ```
 
 
-
 Figure 7
 ```{r, message=FALSE}
 
@@ -606,7 +606,7 @@ ggplot(results_corr, aes(x = param, y = r2)) +
   #                                                           seed = 10)) +
   geom_line(aes(group = protein), color = "gray") +
   geom_point() +
-  labs(x = "Number of parameters in model", 
+  labs(x = "Number of parameters in regression", 
        y = "*R*<sup>2</sup>") +
   theme_cowplot(12, rel_small = 1) +
   theme(
