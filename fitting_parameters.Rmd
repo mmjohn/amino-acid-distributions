@@ -446,6 +446,7 @@ observed_aa_mod %>%
 ```
 
 
+Examine what value of lambda in `glmnet` give you the results of `lm`
 ```{r, message=FALSE}
 # # some lambda value ridge regression should recreate what you get from lm
 # observed_aa_mod %>% 
@@ -584,6 +585,8 @@ ordered_count %>%
 # special function for ridge values
 # any site that has negative counts is normalized by adding the 
 # absolute value of the most negative count
+# also added small constant (0.000001) because a 0 frequency for one aa 
+# messes up entropy calculation
 
 ordered_count %>% 
   group_by(site) %>% 
@@ -591,7 +594,7 @@ ordered_count %>%
     site_min = min(est_dist_3_rid),
     site_max = max(est_dist_3_rid),
     est_dist_3_rid_adj = case_when(
-      site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min),
+      site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
       TRUE ~ est_dist_3_rid
     ),
     est_rel_3_rid = est_dist_3_rid_adj/sum(est_dist_3_rid_adj),
@@ -735,7 +738,7 @@ site_aa_freq_2 %>%
     flnf_1_mod = freq_1_mod*log(freq_1_mod),
     flnf_2_mod = freq_2_mod*log(freq_2_mod),
     flnf_3_rid = freq_3_rid*log(freq_3_rid)
-  ) %>%
+  ) %>% 
   group_by(site) %>%
   summarize(
     entr_1 = -sum(flnf_1),
@@ -889,7 +892,7 @@ rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.718942 - WITH CONSTANT
 compare_eff_aa %>% 
   filter(parameters == "3_rid" & !is.na(eff_aa_est)) -> compare_p3_rid
 
-rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.7710328 - RIDGE
+rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.8818093 - RIDGE
 
 rm(compare_p1, compare_p1_mod, compare_p2, compare_p2_mod, compare_p3)
 
@@ -962,7 +965,7 @@ Supplementary Figure 7
 dat_text_mod <- data.frame(
   label = c("*R*<sup>2</sup> = 0.741", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
             "*R*<sup>2</sup> = 0.184", # 0.859 NO CONSTANT, 0.184 WITH CONSTANT
-            "*R*<sup>2</sup> = 0.771"),
+            "*R*<sup>2</sup> = 0.881"),
   parameters = c(1, 2, 3),
   x = c(12.5, 12.5, 12.5),
   y = c(18, 18, 18)
