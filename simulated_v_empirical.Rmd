@@ -1006,10 +1006,10 @@ Supplementary figure 5
 ```{r, message=FALSE}
 library(ggtext)
 
-all_results_r2 %>% 
+all_results_r2 %>%
   extract(protein, "protein", "(.*)_", remove = T) -> all_results_r2
 
-all_results_r2 %>% 
+all_results_r2 %>%
   ggplot(aes(x = alignment_type, y = r2)) +
   geom_boxplot(aes(fill = alignment_type), alpha = 0.5) +
   #geom_jitter(aes(color = alignment_type)) +

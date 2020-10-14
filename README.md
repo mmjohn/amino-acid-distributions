@@ -12,7 +12,7 @@ Figures from the paper are produced by the following files:
 
 `null_models.Rmd` - Figure 5
 
-`fitting_parameters.Rmd` - Figure 6 and supplementary figures 6 and 7
+`fitting_parameters.Rmd` - Figure 6 and supplementary figures 6, 7, and 8
 
 `empirical_protein_all.Rmd` - Supplementary figure 1
 

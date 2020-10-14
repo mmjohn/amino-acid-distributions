@@ -261,9 +261,11 @@ fit_lm_protein_1 <- function(protein_df) {
     nest(data = c(aa, count, k, rel_count, ln_count)) %>% 
     mutate(
       fit = map(data, ~ lm(ln_count ~ 0 + k, data = .)),
-      slope_1 = map_dbl(fit, ~ (.)$coefficients[1])
+      slope_1 = map_dbl(fit, ~ (.)$coefficients[1]),
+      fit_sum = map(fit, summary),
+      r2_1 = map_dbl(fit_sum, ~ (.)$adj.r.squared)
     ) %>% 
-    select(-data, -fit)
+    select(-data, -fit, -fit_sum)
   
 }
 
@@ -302,9 +304,11 @@ fit_lm_protein_2 <- function(protein_df) {
     mutate(
       fit = map(data, ~ lm(ln_count ~ k, data = .)),
       intercept_2 = map_dbl(fit, ~ (.)$coefficients[1]),
-      slope_2 = map_dbl(fit, ~ (.)$coefficients[2])
+      slope_2 = map_dbl(fit, ~ (.)$coefficients[2]),
+      fit_sum = map(fit, summary),
+      r2_2 = map_dbl(fit_sum, ~ (.)$adj.r.squared)
     ) %>% 
-    select(-data, -fit)
+    select(-data, -fit, -fit_sum)
   
 }
 
@@ -343,9 +347,11 @@ observed_aa_mod %>%
     fit = map(data, ~ lm(ln_count ~ k + I(k^2), data = .)),
     intercept_3 = map_dbl(fit, ~ (.)$coefficients[1]),
     slope_3 = map_dbl(fit, ~ (.)$coefficients[2]),
-    sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3])
+    sqr_slp_3 = map_dbl(fit, ~ (.)$coefficients[3]),
+    fit_sum = map(fit, summary),
+    r2_3 = map_dbl(fit_sum, ~ (.)$adj.r.squared)
   ) %>%
-  select(-data, -fit) -> observed_fits_3
+  select(-data, -fit, -fit_sum) -> observed_fits_3
 
 
 ```
@@ -498,6 +504,10 @@ observed_fits_mod_1 %>%
   full_join(., observed_fits_mod_2, by = c("protein", "site")) %>% 
   full_join(., observed_fits_3_ridge, by = "site") -> observed_fits_mod
 
+# extract r2 results
+observed_fits %>% 
+  select(protein, site, r2_1, r2_2, r2_3) -> regression_performance
+
 # get rid of old subsets
 rm(observed_fits_1, observed_fits_2, observed_fits_mod_1, 
    observed_fits_mod_2, observed_fits_3, observed_fits_3_ridge,
@@ -518,7 +528,7 @@ ordered_count %>%
 
 # estimate counts with parameters from fit - no constant for 1 and 2 param
 ordered_count %>% 
-  left_join(observed_fits, by = c("protein", "site")) %>%
+  left_join(observed_fits, by = c("protein", "site")) %>% 
   mutate(
     est_dist_1 = slope_1*exp(k*slope_1),
     est_dist_2 = slope_2*exp(k*slope_2+intercept_2),
@@ -528,8 +538,8 @@ ordered_count %>%
 
 # estimate counts with parameters from fit - constant for all
 colnames(observed_fits_mod)[3] <- "slope_1_mod"
-colnames(observed_fits_mod)[4] <- "intercept_2_mod"
-colnames(observed_fits_mod)[5] <- "slope_2_mod"
+colnames(observed_fits_mod)[5] <- "intercept_2_mod"
+colnames(observed_fits_mod)[6] <- "slope_2_mod"
 
 ordered_count %>% 
   left_join(
@@ -605,7 +615,6 @@ ordered_count %>%
 rm(observed_fits, observed_fits_mod)
 
 ```
-
 
 
 Chi-squared test: actual vs estimated
@@ -797,7 +806,7 @@ rm(sub1, sub2, site_aa_freq, site_aa_freq_2,
 ```
 
 
-Relationship between regularization $\lambda$ and $n_{eff}$
+Supplementary Figure 7 - Relationship between regularization $\lambda$ and $n_{eff}$
 ```{r, message=FALSE}
 # distribution of optimal lambda
 ggplot(
@@ -814,7 +823,7 @@ ggplot(
   ) + scale_y_continuous(
     limits = c(0, 3),
     expand = c(0, 0)
-  ) -> figs6_1
+  ) -> figs7_1
   
 
 # relationship between optimal lambda and neff
@@ -845,14 +854,16 @@ compare_eff_aa %>%
     axis.title.x = element_markdown(),
     axis.title.y = element_markdown()
   ) +
-  background_grid() -> figs6_2
+  background_grid() -> figs7_2
 
-plot_grid(figs6_1, figs6_2, ncol = 2,
-          align = "h", axis = "bt", rel_widths = c(1, 1.3)) -> figs6
+plot_grid(figs7_1, figs7_2, ncol = 2,
+          align = "h", axis = "bt", 
+          rel_widths = c(1, 1.3),
+          labels = c("A", "B")) -> figs7
 
-figs6
+figs7
 
-save_plot("figures6.png", figs6, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures7.png", figs7, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```
@@ -960,7 +971,7 @@ save_plot("figure6.png", fig6, ncol = 1, nrow = 1, base_height = 5,
 ```
 
 
-Supplementary Figure 7
+Supplementary Figure 8
 ```{r}
 dat_text_mod <- data.frame(
   label = c("*R*<sup>2</sup> = 0.741", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
@@ -1011,15 +1022,92 @@ ggplot(all_results_mod,
   theme(
     axis.title.x = element_markdown(),
     axis.title.y = element_markdown(),
-    strip.background = element_rect(fill = "gray90")) -> figs7
+    strip.background = element_rect(fill = "gray90")) -> figs8
 
-figs7
+figs8
 
-save_plot("figures7.png", figs7, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures8.png", figs8, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 
 ```
+
+
+Supplementary Figure 6
+```{r, message=FALSE}
+library(nationalparkcolors)
+
+supp_f6_colors <- park_palette("MtRainier", 3)
+
+chisq_results %>% 
+  filter(parameters == 1 | parameters == 2 | parameters == 3) -> chisq_results
+
+chisq_results$parameters <- as.factor(chisq_results$parameters)
+
+chisq_results$parameters <- factor(
+  chisq_results$parameters,
+  levels = rev(levels(chisq_results$parameters))
+)
+
+chisq_results %>% 
+  ggplot(aes(x = p.adjusted, y = parameters)) +
+  geom_boxplot(aes(fill = parameters), alpha = 0.5) +
+  scale_fill_manual(values = supp_f6_colors) +
+  labs(
+    x = "*p*-value",
+    y = "Parameters"
+  ) +
+  theme(
+    legend.position = "none",
+    axis.title.x = element_markdown()
+  ) +
+  panel_border() -> figs6_1
+
+regression_performance %>% 
+  pivot_longer(
+    cols = c(r2_1, r2_2, r2_3),
+    names_to = "parameters",
+    values_to = "r2"
+  ) -> regression_performance
+
+recode_factor(
+  regression_performance$parameters,
+  r2_3 = "3",
+  r2_2 = "2",
+  r2_1 = "1",
+  .ordered = TRUE
+) -> regression_performance$parameters
+
+factor(
+  regression_performance$parameters,
+  levels = rev(levels(regression_performance$parameters))
+) -> regression_performance$parameters
+
+regression_performance %>% 
+  ggplot(aes(x = parameters, y = r2)) +
+  geom_boxplot(aes(fill = parameters), alpha = 0.5) +
+  scale_fill_manual(values = supp_f6_colors) +
+  coord_flip() +
+  labs(y = "*R*<sup>2</sup>") +
+  theme(
+    axis.title.y = element_blank(),
+    legend.position = "none",
+    axis.title.x = element_markdown()
+  ) +
+  panel_border() -> figs6_2
+
+plot_grid(figs6_1, figs6_2, ncol = 2,
+          align = "h", axis = "bt", 
+          labels = c("A", "B")) -> figs6
+
+figs6
+
+save_plot("figures6.png", figs6, ncol = 1, nrow = 1, base_height = 5,
+          base_asp = 1.618, base_width = NULL)
+
+
+```
+
 
 
 ```{r, message=FALSE}
