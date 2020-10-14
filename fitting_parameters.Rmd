@@ -1078,11 +1078,6 @@ recode_factor(
   .ordered = TRUE
 ) -> regression_performance$parameters
 
-factor(
-  regression_performance$parameters,
-  levels = rev(levels(regression_performance$parameters))
-) -> regression_performance$parameters
-
 regression_performance %>% 
   ggplot(aes(x = parameters, y = r2)) +
   geom_boxplot(aes(fill = parameters), alpha = 0.5) +
