@@ -228,12 +228,11 @@ observed_aa %>%
 
 
 Add constant to all
-```{r}
+```{r, message=FALSE}
 # add a small constant to include aa with zero values
 ordered_count %>%
-  mutate(count = count + 0.000001) -> observed_aa_mod
-ordered_count %>%
-  mutate(count_mod = count + 0.000001) -> ordered_count_mod
+  mutate(count = count + 0.01) -> observed_aa_mod
+  #mutate(count = count + 0.000001) -> observed_aa_mod
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
 observed_aa_mod %>%
@@ -248,6 +247,105 @@ observed_aa_mod %>%
 rm(alignment, all_count, empty_counts, no_gaps, site_aa_count)
 
 ```
+
+
+Look at how different constants/pseudocounts impact fit
+```{r, message=FALSE}
+ordered_count %>%
+  mutate(
+    count1 = count + 0.000001,
+    count2 = count + 0.001,
+    count3 = count + 0.01,
+    count4 = count + 0.1
+  ) -> test_df
+
+test_df %>%
+  group_by(site) %>%
+  mutate(
+    rel_count1 = count1/max(count1),
+    rel_count2 = count2/max(count2),
+    rel_count3 = count3/max(count3),
+    rel_count4 = count4/max(count4)
+  ) -> test_df
+
+test_df %>%
+  mutate(
+    ln_count1 = log(rel_count1),
+    ln_count2 = log(rel_count2),
+    ln_count3 = log(rel_count3),
+    ln_count4 = log(rel_count4)
+  ) -> test_df
+
+test_df %>%
+  filter(site == 1) %>% lm(ln_count1 ~ 0 + k, .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count2 ~ 0 + k, .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count3 ~ 0 + k, .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count4 ~ 0 + k, .)
+
+test_df %>%
+  filter(site == 1) %>%
+  ggplot(aes(x = k)) +
+  geom_point(aes(y = ln_count1), color = "red") +
+  geom_abline(intercept = 0, slope = -1.293, color = "red") +
+  geom_point(aes(y = ln_count2), color = "black") +
+  geom_abline(intercept = 0, slope = -0.7894, color = "black") +
+  geom_point(aes(y = ln_count3), color = "blue") +
+  geom_abline(intercept = 0, slope = -0.6216, color = "blue") +
+  geom_point(aes(y = ln_count4), color = "green") +
+  geom_abline(intercept = 0, slope = -0.4538, color = "green")
+
+test_df %>%
+  filter(site == 15) %>% lm(ln_count1 ~ k, .)
+test_df %>%
+  filter(site == 15) %>% lm(ln_count2 ~ k, .)
+test_df %>%
+  filter(site == 15) %>% lm(ln_count3 ~ k, .)
+test_df %>%
+  filter(site == 15) %>% lm(ln_count4 ~ k, .)
+
+test_df %>%
+  filter(site == 15) %>%
+  ggplot(aes(x = k)) +
+  geom_point(aes(y = ln_count1), color = "red") +
+  geom_abline(intercept = -15.35, slope = -0.27, color = "red") +
+  geom_point(aes(y = ln_count2), color = "black") +
+  geom_abline(intercept = -9.73, slope = -0.17, color = "black") +
+  geom_point(aes(y = ln_count3), color = "blue") +
+  geom_abline(intercept = -7.85, slope = -0.14, color = "blue") +
+  geom_point(aes(y = ln_count4), color = "green") +
+  geom_abline(intercept = -5.98, slope = -0.10, color = "green")
+
+test_df %>%
+  filter(site == 1) %>% lm(ln_count1 ~ k + I(k^2), .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count2 ~ k + I(k^2), .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count3 ~ k + I(k^2), .)
+test_df %>%
+  filter(site == 1) %>% lm(ln_count4 ~ k + I(k^2), .)
+
+fun.1 <- function(k) 2.3072 - 3.652*k + 0.1228*k*k
+fun.2 <- function(k) 0.98411 - 1.94114*k + 0.07362*k*k
+fun.3 <- function(k) 0.54431 - 1.49991*k + 0.05723*k*k
+fun.4 <- function(k) 0.11556 - 1.05967*k + 0.04085*k*k
+
+test_df %>%
+  filter(site == 1) %>%
+  ggplot(aes(x = k)) +
+  geom_point(aes(y = ln_count1), color = "red") +
+  stat_function(fun = fun.1, color = "red") +
+  geom_point(aes(y = ln_count2), color = "black") +
+  stat_function(fun = fun.2, color = "black") +
+  geom_point(aes(y = ln_count3), color = "blue") +
+  stat_function(fun = fun.3, color = "blue") +
+  geom_point(aes(y = ln_count4), color = "green") +
+  stat_function(fun = fun.4, color = "green")
+
+```
+
 
 
 1 parameter fit - without constant
@@ -389,7 +487,8 @@ find_ridge_lambda <- function(site_df){
 # amino acids observed
 observed_aa_mod %>% 
   group_by(site) %>% 
-  filter(k == 1 & count == 0.000001) %>% 
+  filter(k == 1 & count == 0.01) %>% 
+  #filter(k == 1 & count == 0.000001) %>% 
   select(site) -> conserved_sites
 
 observed_aa_mod %>% 
@@ -404,12 +503,12 @@ observed_aa_mod %>%
 
 site_cv_lambda$optimal_ridge_lambda <- as.numeric(site_cv_lambda$optimal_ridge_lambda)
 
-# lambda value across sites - use one lambda values (0.65)
-# ggplot(
-#   site_cv_lambda, 
-#   aes(x = optimal_ridge_lambda)
-# ) + geom_density() +
-#   geom_vline(xintercept = 0.65)
+# lambda value across sites - use one lambda values (0.65) 0.375 for 0.001 constant
+ggplot(
+  site_cv_lambda,
+  aes(x = optimal_ridge_lambda)
+) + geom_density() +
+  geom_vline(xintercept = 0.28)
 
 summary(site_cv_lambda$optimal_ridge_lambda)
 
@@ -427,7 +526,7 @@ fit_ridge <- function(site_df){
     cbind(site_df$k, site_df$k2),
     site_df$ln_count,
     alpha = 0, # for ridge regression
-    lambda = 0.65 # optimal across sites
+    lambda = 0.28 # optimal across sites
   ) -> fit
   
   # get coefficients from fit
@@ -604,7 +703,8 @@ ordered_count %>%
     site_min = min(est_dist_3_rid),
     site_max = max(est_dist_3_rid),
     est_dist_3_rid_adj = case_when(
-      site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
+      site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.01,
+      #site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
       TRUE ~ est_dist_3_rid
     ),
     est_rel_3_rid = est_dist_3_rid_adj/sum(est_dist_3_rid_adj),
@@ -684,7 +784,7 @@ Chi-squared results based on number of parameters used
 chisq_results %>% 
   filter(parameters == 1 & result == "fail") %>% nrow()
 
-# 153 sites; 133 fail (86.9%) - WITH CONSTANT
+# 153 sites; 98 fail (64.1%) - WITH CONSTANT
 chisq_results %>% 
   filter(parameters == "1_mod" & result == "fail") %>% nrow()
 
@@ -692,11 +792,11 @@ chisq_results %>%
 chisq_results %>% 
   filter(parameters == 2 & result == "fail") %>% nrow()
 
-# 153 sites; 135 fail (88.2%) - WITH CONSTANT
+# 153 sites; 125 fail (81.7%) - WITH CONSTANT
 chisq_results %>% 
   filter(parameters == "2_mod" & result == "fail") %>% nrow()
 
-# 153 sites; 129 fail (84.3%) - WITH CONSTANT
+# 153 sites; 110 fail (71.9%) - WITH CONSTANT
 chisq_results %>% 
   filter(parameters == 3 & result == "fail") %>% nrow()
 
@@ -813,15 +913,15 @@ ggplot(
   site_cv_lambda, 
   aes(x = optimal_ridge_lambda)
 ) + geom_density(fill = "grey90") +
-  geom_vline(xintercept = 0.65, linetype = "dashed") +
+  geom_vline(xintercept = 0.28, linetype = "dashed") +
   labs(
     x = "Optimal tuning parameter", 
     y = "Density"
   ) + scale_x_continuous(
-    limits = c(0, 2),
+    limits = c(0, 1),
     expand = c(0, 0)
   ) + scale_y_continuous(
-    limits = c(0, 3),
+    limits = c(0, 8),
     expand = c(0, 0)
   ) -> figs7_1
   
@@ -837,13 +937,13 @@ compare_eff_aa %>%
   )) +
   geom_point() +
   geom_smooth() +
-  geom_hline(aes(yintercept = 0.65), linetype = "dashed") +
+  geom_hline(aes(yintercept = 0.28), linetype = "dashed") +
   scale_x_continuous(
     limits = c(1, 12.5),
     expand = c(0.015, 0.015)
   ) +
   scale_y_continuous(
-    limits = c(0, 2),
+    limits = c(0, 0.75),
     expand = c(0, 0)
   ) +
   labs(
@@ -883,7 +983,7 @@ rsq(compare_p1$eff_aa, compare_p1$eff_aa_est) # 0.9706805 - NO CONSTANT
 compare_eff_aa %>% 
   filter(parameters == "1_mod" & !is.na(eff_aa_est)) -> compare_p1_mod
 
-rsq(compare_p1_mod$eff_aa, compare_p1_mod$eff_aa_est) # 0.7409036 - WITH CONSTANT
+rsq(compare_p1_mod$eff_aa, compare_p1_mod$eff_aa_est) # 0.8859595 - WITH CONSTANT
 
 compare_eff_aa %>% 
   filter(parameters == 2 & !is.na(eff_aa_est)) -> compare_p2
@@ -893,17 +993,17 @@ rsq(compare_p2$eff_aa, compare_p2$eff_aa_est) # 0.8589123 - NO CONSTANT
 compare_eff_aa %>% 
   filter(parameters == "2_mod" & !is.na(eff_aa_est)) -> compare_p2_mod
 
-rsq(compare_p2_mod$eff_aa, compare_p2_mod$eff_aa_est) # 0.1839351 - WITH CONSTANT
+rsq(compare_p2_mod$eff_aa, compare_p2_mod$eff_aa_est) # 0.2922884 - WITH CONSTANT
 
 compare_eff_aa %>% 
   filter(parameters == 3 & !is.na(eff_aa_est)) -> compare_p3
 
-rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.718942 - WITH CONSTANT
+rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.4008924 - WITH CONSTANT
 
 compare_eff_aa %>% 
   filter(parameters == "3_rid" & !is.na(eff_aa_est)) -> compare_p3_rid
 
-rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.8818093 - RIDGE
+rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.8818093 - RIDGE, 0.926948 with 0.001
 
 rm(compare_p1, compare_p1_mod, compare_p2, compare_p2_mod, compare_p3)
 
@@ -918,9 +1018,9 @@ signif(0.8589123, digits = 3)
 signif(0.718942, digits = 3)
 
 dat_text <- data.frame(
-  label = c("*R*<sup>2</sup> = 0.971", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
-            "*R*<sup>2</sup> = 0.859", # 0.859 NO CONSTANT, 0.184 WITH CONSTANT
-            "*R*<sup>2</sup> = 0.719"),
+  label = c("*R*<sup>2</sup> = 0.971", 
+            "*R*<sup>2</sup> = 0.859", 
+            "*R*<sup>2</sup> = 0.401"), # 0.719 with constant 0.000001
   parameters = c(1, 2, 3),
   x = c(11.25, 11.25, 11.25),
   y = c(2, 2, 2)
@@ -972,10 +1072,11 @@ save_plot("figure6.png", fig6, ncol = 1, nrow = 1, base_height = 5,
 
 
 Supplementary Figure 8
-```{r}
+```{r, message=FALSE}
+
 dat_text_mod <- data.frame(
-  label = c("*R*<sup>2</sup> = 0.741", # 0.971 NO CONSTANT, 0.741 WITH CONSTANT
-            "*R*<sup>2</sup> = 0.184", # 0.859 NO CONSTANT, 0.184 WITH CONSTANT
+  label = c("*R*<sup>2</sup> = 0.886", # 0.971 NO CONSTANT, 0.886 WITH CONSTANT
+            "*R*<sup>2</sup> = 0.292", # 0.859 NO CONSTANT, 0.292 WITH CONSTANT
             "*R*<sup>2</sup> = 0.881"),
   parameters = c(1, 2, 3),
   x = c(12.5, 12.5, 12.5),
