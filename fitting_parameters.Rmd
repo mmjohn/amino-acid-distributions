@@ -983,7 +983,7 @@ compare_eff_aa %>%
     expand = c(0.015, 0.015)
   ) +
   scale_y_continuous(
-    limits = c(0, 0.75),
+    limits = c(0, 0.5),
     expand = c(0, 0)
   ) +
   labs(
