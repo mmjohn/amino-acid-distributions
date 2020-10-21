@@ -251,98 +251,98 @@ rm(alignment, all_count, empty_counts, no_gaps, site_aa_count)
 
 Look at how different constants/pseudocounts impact fit
 ```{r, message=FALSE}
-ordered_count %>%
-  mutate(
-    count1 = count + 0.000001,
-    count2 = count + 0.001,
-    count3 = count + 0.01,
-    count4 = count + 0.1
-  ) -> test_df
-
-test_df %>%
-  group_by(site) %>%
-  mutate(
-    rel_count1 = count1/max(count1),
-    rel_count2 = count2/max(count2),
-    rel_count3 = count3/max(count3),
-    rel_count4 = count4/max(count4)
-  ) -> test_df
-
-test_df %>%
-  mutate(
-    ln_count1 = log(rel_count1),
-    ln_count2 = log(rel_count2),
-    ln_count3 = log(rel_count3),
-    ln_count4 = log(rel_count4)
-  ) -> test_df
-
-test_df %>%
-  filter(site == 1) %>% lm(ln_count1 ~ 0 + k, .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count2 ~ 0 + k, .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count3 ~ 0 + k, .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count4 ~ 0 + k, .)
-
-test_df %>%
-  filter(site == 1) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = ln_count1), color = "red") +
-  geom_abline(intercept = 0, slope = -1.293, color = "red") +
-  geom_point(aes(y = ln_count2), color = "black") +
-  geom_abline(intercept = 0, slope = -0.7894, color = "black") +
-  geom_point(aes(y = ln_count3), color = "blue") +
-  geom_abline(intercept = 0, slope = -0.6216, color = "blue") +
-  geom_point(aes(y = ln_count4), color = "green") +
-  geom_abline(intercept = 0, slope = -0.4538, color = "green")
-
-test_df %>%
-  filter(site == 15) %>% lm(ln_count1 ~ k, .)
-test_df %>%
-  filter(site == 15) %>% lm(ln_count2 ~ k, .)
-test_df %>%
-  filter(site == 15) %>% lm(ln_count3 ~ k, .)
-test_df %>%
-  filter(site == 15) %>% lm(ln_count4 ~ k, .)
-
-test_df %>%
-  filter(site == 15) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = ln_count1), color = "red") +
-  geom_abline(intercept = -15.35, slope = -0.27, color = "red") +
-  geom_point(aes(y = ln_count2), color = "black") +
-  geom_abline(intercept = -9.73, slope = -0.17, color = "black") +
-  geom_point(aes(y = ln_count3), color = "blue") +
-  geom_abline(intercept = -7.85, slope = -0.14, color = "blue") +
-  geom_point(aes(y = ln_count4), color = "green") +
-  geom_abline(intercept = -5.98, slope = -0.10, color = "green")
-
-test_df %>%
-  filter(site == 1) %>% lm(ln_count1 ~ k + I(k^2), .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count2 ~ k + I(k^2), .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count3 ~ k + I(k^2), .)
-test_df %>%
-  filter(site == 1) %>% lm(ln_count4 ~ k + I(k^2), .)
-
-fun.1 <- function(k) 2.3072 - 3.652*k + 0.1228*k*k
-fun.2 <- function(k) 0.98411 - 1.94114*k + 0.07362*k*k
-fun.3 <- function(k) 0.54431 - 1.49991*k + 0.05723*k*k
-fun.4 <- function(k) 0.11556 - 1.05967*k + 0.04085*k*k
-
-test_df %>%
-  filter(site == 1) %>%
-  ggplot(aes(x = k)) +
-  geom_point(aes(y = ln_count1), color = "red") +
-  stat_function(fun = fun.1, color = "red") +
-  geom_point(aes(y = ln_count2), color = "black") +
-  stat_function(fun = fun.2, color = "black") +
-  geom_point(aes(y = ln_count3), color = "blue") +
-  stat_function(fun = fun.3, color = "blue") +
-  geom_point(aes(y = ln_count4), color = "green") +
-  stat_function(fun = fun.4, color = "green")
+# ordered_count %>%
+#   mutate(
+#     count1 = count + 0.000001,
+#     count2 = count + 0.001,
+#     count3 = count + 0.01,
+#     count4 = count + 0.1
+#   ) -> test_df
+# 
+# test_df %>%
+#   group_by(site) %>%
+#   mutate(
+#     rel_count1 = count1/max(count1),
+#     rel_count2 = count2/max(count2),
+#     rel_count3 = count3/max(count3),
+#     rel_count4 = count4/max(count4)
+#   ) -> test_df
+# 
+# test_df %>%
+#   mutate(
+#     ln_count1 = log(rel_count1),
+#     ln_count2 = log(rel_count2),
+#     ln_count3 = log(rel_count3),
+#     ln_count4 = log(rel_count4)
+#   ) -> test_df
+# 
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count1 ~ 0 + k, .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count2 ~ 0 + k, .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count3 ~ 0 + k, .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count4 ~ 0 + k, .)
+# 
+# test_df %>%
+#   filter(site == 1) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = ln_count1), color = "red") +
+#   geom_abline(intercept = 0, slope = -1.293, color = "red") +
+#   geom_point(aes(y = ln_count2), color = "black") +
+#   geom_abline(intercept = 0, slope = -0.7894, color = "black") +
+#   geom_point(aes(y = ln_count3), color = "blue") +
+#   geom_abline(intercept = 0, slope = -0.6216, color = "blue") +
+#   geom_point(aes(y = ln_count4), color = "green") +
+#   geom_abline(intercept = 0, slope = -0.4538, color = "green")
+# 
+# test_df %>%
+#   filter(site == 15) %>% lm(ln_count1 ~ k, .)
+# test_df %>%
+#   filter(site == 15) %>% lm(ln_count2 ~ k, .)
+# test_df %>%
+#   filter(site == 15) %>% lm(ln_count3 ~ k, .)
+# test_df %>%
+#   filter(site == 15) %>% lm(ln_count4 ~ k, .)
+# 
+# test_df %>%
+#   filter(site == 15) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = ln_count1), color = "red") +
+#   geom_abline(intercept = -15.35, slope = -0.27, color = "red") +
+#   geom_point(aes(y = ln_count2), color = "black") +
+#   geom_abline(intercept = -9.73, slope = -0.17, color = "black") +
+#   geom_point(aes(y = ln_count3), color = "blue") +
+#   geom_abline(intercept = -7.85, slope = -0.14, color = "blue") +
+#   geom_point(aes(y = ln_count4), color = "green") +
+#   geom_abline(intercept = -5.98, slope = -0.10, color = "green")
+# 
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count1 ~ k + I(k^2), .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count2 ~ k + I(k^2), .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count3 ~ k + I(k^2), .)
+# test_df %>%
+#   filter(site == 1) %>% lm(ln_count4 ~ k + I(k^2), .)
+# 
+# fun.1 <- function(k) 2.3072 - 3.652*k + 0.1228*k*k
+# fun.2 <- function(k) 0.98411 - 1.94114*k + 0.07362*k*k
+# fun.3 <- function(k) 0.54431 - 1.49991*k + 0.05723*k*k
+# fun.4 <- function(k) 0.11556 - 1.05967*k + 0.04085*k*k
+# 
+# test_df %>%
+#   filter(site == 1) %>%
+#   ggplot(aes(x = k)) +
+#   geom_point(aes(y = ln_count1), color = "red") +
+#   stat_function(fun = fun.1, color = "red") +
+#   geom_point(aes(y = ln_count2), color = "black") +
+#   stat_function(fun = fun.2, color = "black") +
+#   geom_point(aes(y = ln_count3), color = "blue") +
+#   stat_function(fun = fun.3, color = "blue") +
+#   geom_point(aes(y = ln_count4), color = "green") +
+#   stat_function(fun = fun.4, color = "green")
 
 ```
 
@@ -503,12 +503,12 @@ observed_aa_mod %>%
 
 site_cv_lambda$optimal_ridge_lambda <- as.numeric(site_cv_lambda$optimal_ridge_lambda)
 
-# lambda value across sites - use one lambda values (0.65) 0.375 for 0.001 constant
-ggplot(
-  site_cv_lambda,
-  aes(x = optimal_ridge_lambda)
-) + geom_density() +
-  geom_vline(xintercept = 0.28)
+# # lambda value across sites - use one lambda values (0.65) 0.375 for 0.001 constant
+# ggplot(
+#   site_cv_lambda,
+#   aes(x = optimal_ridge_lambda)
+# ) + geom_density() +
+#   geom_vline(xintercept = 0.28)
 
 summary(site_cv_lambda$optimal_ridge_lambda)
 
@@ -635,11 +635,14 @@ ordered_count %>%
                                     intercept_3)
   ) -> ordered_count
 
-# estimate counts with parameters from fit - constant for all
+# rename prior to join
 colnames(observed_fits_mod)[3] <- "slope_1_mod"
+colnames(observed_fits_mod)[4] <- "r2_1_mod"
 colnames(observed_fits_mod)[5] <- "intercept_2_mod"
 colnames(observed_fits_mod)[6] <- "slope_2_mod"
+colnames(observed_fits_mod)[7] <- "r2_2_mod"
 
+# estimate counts with parameters from fit - constant for all
 ordered_count %>% 
   left_join(
     observed_fits_mod, 
@@ -653,6 +656,49 @@ ordered_count %>%
     )
   ) -> ordered_count
 
+# ordered_count %>% 
+#   select(site, intercept_3, intercept_ridge, slope_3, slope_ridge, sqr_slp_3, sqr_slp_ridge) %>% 
+#   unique() %>% 
+#   filter( 
+#     intercept_3 > 0 & intercept_ridge < 0 |
+#       intercept_3 < 0 & intercept_ridge > 0 |
+#       slope_3 > 0 & slope_ridge < 0 |
+#       slope_3 < 0 & slope_ridge > 0 |
+#       sqr_slp_3 > 0 & sqr_slp_ridge < 0 |
+#       sqr_slp_3 < 0 & sqr_slp_ridge > 0
+#   )%>% View()
+
+# ordered_count %>% 
+#   filter(site == 44) %>% 
+#   ggplot(aes(x = k)) +
+#   #geom_point(aes(y = ln_count)) +
+#   geom_path(aes(y = est_dist_1), color = "black") +
+#   geom_path(aes(y = est_dist_2), color = "blue") +
+#   geom_path(aes(y = est_dist_3), color = "grey") +
+#   geom_path(aes(y = est_dist_1_mod), color = "red") +
+#   geom_path(aes(y = est_dist_2_mod), color = "green") +
+#   geom_path(aes(y = est_dist_3_rid), color = "orange") +
+#   geom_path(aes(y = est_dist_3_rid - max(est_dist_3_rid)), color = "pink")
+#   #stat_function(fun = fun.norm, color = "purple") +
+#   #stat_function(fun = fun.rid, color = "yellow")
+
+#fun.norm <- function(k) 0.055728816 - 0.650043121*k + 0.0066499756*k*k # site 16
+#fun.rid <- function(k) -1.021969165 - 0.3591600*k - 0.0069993493*k*k # site 16
+#fun.norm <- function(k) -4.71 - 0.989*k + 0.0417*k*k # site 44
+#fun.rid <- function(k) -7.06 - 0.279*k + 0.00610*k*k # site 44
+#fun.norm <- function(k) -0.8082027 + 0.063021552*k + -0.02558368*k*k # site 24
+#fun.rid <- function(k) -0.2963912 - 0.1385702*k - 0.01422084*k*k # site 24
+#fun.norm <- function(k) 0.039615500 - 1.1014443*k + 0.0320175777*k*k # site 2
+#fun.rid <- function(k) -2.135163818 - 2.135163818*k + 0.0008326154*k*k # site 2
+
+# make correction to est_dist_3_rid because it is currently wrong
+# needs to be < 0 like all other distributions, but it is not for some reason
+ordered_count %>% 
+  group_by(site) %>% 
+  mutate(
+    est_dist_3_rid_corrected = est_dist_3_rid - max(est_dist_3_rid)
+  ) -> ordered_count
+
 # rescale to compare w raw count
 rescale_est_dist <- function(protein_df) {
   
@@ -663,16 +709,16 @@ rescale_est_dist <- function(protein_df) {
       est_rel_2 = est_dist_2/sum(est_dist_2),
       est_rel_3 = est_dist_3/sum(est_dist_3),
       est_rel_1_mod = est_dist_1_mod/sum(est_dist_1_mod),
-      est_rel_2_mod = est_dist_2_mod/sum(est_dist_2_mod)
-      #est_rel_3_rid = est_dist_3_rid/sum(est_dist_3_rid)
+      est_rel_2_mod = est_dist_2_mod/sum(est_dist_2_mod),
+      est_rel_3_rid = est_dist_3_rid_corrected/sum(est_dist_3_rid_corrected)
     ) %>% 
     mutate(
       est_count_1 = sum(count)*est_rel_1,
       est_count_2 = sum(count)*est_rel_2,
       est_count_3 = sum(count)*est_rel_3,
       est_count_1_mod = sum(count)*est_rel_1_mod,
-      est_count_2_mod = sum(count)*est_rel_2_mod
-      #est_count_3_rid = sum(count)*est_rel_3_rid
+      est_count_2_mod = sum(count)*est_rel_2_mod,
+      est_count_3_rid = sum(count)*est_rel_3_rid
     )
   
 }
@@ -681,35 +727,38 @@ ordered_count %>%
   nest(data = c(site, aa, count, k, rel_count, 
                 ln_count, slope_1, intercept_2,
                 slope_2, intercept_3, slope_3,
-                sqr_slp_3, est_dist_1, est_dist_2, 
+                sqr_slp_3, intercept_ridge,
+                slope_ridge, sqr_slp_ridge,
+                est_dist_1, est_dist_2, 
                 est_dist_3, est_dist_1_mod, 
-                est_dist_2_mod, est_dist_3_rid)) %>% 
+                est_dist_2_mod, est_dist_3_rid,
+                est_dist_3_rid_corrected)) %>% 
   mutate(rescaled = map(data, rescale_est_dist)) %>% 
   select(-data) %>% 
   unnest(cols = rescaled) -> ordered_count
 
-# ISSUE: the ridge regression gives rise to sites with negative counts
-# if these negative counts are used in the chi squared analysis, we get
-# a negative chi squared statistic and a p value of 1
-# special function for ridge values
-# any site that has negative counts is normalized by adding the 
-# absolute value of the most negative count
-# also added small constant (0.000001) because a 0 frequency for one aa 
-# messes up entropy calculation
-
-ordered_count %>% 
-  group_by(site) %>% 
-  mutate(
-    site_min = min(est_dist_3_rid),
-    site_max = max(est_dist_3_rid),
-    est_dist_3_rid_adj = case_when(
-      site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.01,
-      #site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
-      TRUE ~ est_dist_3_rid
-    ),
-    est_rel_3_rid = est_dist_3_rid_adj/sum(est_dist_3_rid_adj),
-    est_count_3_rid = sum(count)*est_rel_3_rid
-  ) -> ordered_count
+# # ISSUE: the ridge regression gives rise to sites with negative counts
+# # if these negative counts are used in the chi squared analysis, we get
+# # a negative chi squared statistic and a p value of 1
+# # special function for ridge values
+# # any site that has negative counts is normalized by adding the 
+# # absolute value of the most negative count
+# # also added small constant (0.000001) because a 0 frequency for one aa 
+# # messes up entropy calculation
+# 
+# ordered_count %>% 
+#   group_by(site) %>% 
+#   mutate(
+#     site_min = min(est_dist_3_rid),
+#     site_max = max(est_dist_3_rid),
+#     est_dist_3_rid_adj = case_when(
+#       site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.01,
+#       #site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
+#       TRUE ~ est_dist_3_rid
+#     ),
+#     est_rel_3_rid = est_dist_3_rid_adj/sum(est_dist_3_rid_adj),
+#     est_count_3_rid = sum(count)*est_rel_3_rid
+#   ) -> ordered_count
 
 # remove duplicate information
 rm(observed_fits, observed_fits_mod)
@@ -1044,6 +1093,10 @@ ggplot(all_results_original,
     y = "*n*<sub>eff</sub> of fit distribution",
     color = "Result"
   ) +
+  scale_y_continuous(
+    limits = c(0, 13),
+    breaks = c(0, 2.5, 5, 7.5, 10.0, 12.5)
+  ) +
   scale_color_manual(
     values = c("#E69F00", "#0072B2")
   ) +
@@ -1207,49 +1260,34 @@ save_plot("figures6.png", figs6, ncol = 1, nrow = 1, base_height = 5,
 
 
 ```{r, message=FALSE}
-## code to look at actual fits 
-## use ln_count and est_dist_* to see what is actually fit
-## use count and est_count_* to see the real+estimated distribution that chi2 is
-## performed on
+# visualize how each fit works at any given site
+# 16 should be fit easily
+# 44, 90, 15, 138
 
-# ordered_count %>%
-#   filter(site == 16) %>%
-#   select(site, k, est_dist_3, est_dist_3_rid,
-#          est_count_3, est_count_3_rid) -> df_sub1
-# 
-# observed_aa_mod %>%
-#   filter(site == 16) %>%
-#   left_join(., df_sub1) -> df_plot
-# 
-# ggplot(df_plot, aes(x = k)) +
-#   geom_bar(aes(y = count), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count_3, color = "violetred")) +
-#   geom_line(aes(y = est_count_3, color = "violetred"), size = 1) +
-#   scale_color_manual(
-#     name = "distribution",
-#     values = c("grey" = "grey", "violetred" = "violetred"),
-#     labels = c("actual", "estimated")
-#   ) +
-#   labs(x = "Amino acids ranked, *i*", y = "Count") +
-#   theme(
-#     legend.position = "none",
-#     axis.title.x = element_markdown()
-#   )
-# 
-# ggplot(df_plot, aes(x = k)) +
-#   geom_bar(aes(y = count), fill = "grey", stat='identity') +
-#   geom_point(aes(y = est_count_3_rid, color = "violetred")) +
-#   geom_line(aes(y = est_count_3_rid, color = "violetred"), size = 1) +
-#   scale_color_manual(
-#     name = "distribution",
-#     values = c("grey" = "grey", "violetred" = "violetred"),
-#     labels = c("actual", "estimated")
-#   ) +
-#   labs(x = "Amino acids ranked, *i*", y = "Count") +
-#   theme(
-#     legend.position = "none",
-#     axis.title.x = element_markdown()
-#   )
+ordered_count %>%
+  filter(site == 16) %>%
+  ggplot(aes(x = k)) +
+  geom_bar(aes(y = count), fill = "grey", stat='identity') +
+  geom_line(aes(y = est_count_1), color = "black", size = 1) +
+  geom_line(aes(y = est_count_2), color = "blue", size = 1) +
+  geom_line(aes(y = est_count_3), color = "violetred", size = 1) +
+  geom_line(aes(y = est_count_1_mod), color = "purple", size = 1) +
+  geom_line(aes(y = est_count_2_mod), color = "green", size = 1) +
+  geom_line(aes(y = est_count_3_rid), color = "orange", size = 1) +
+  # scale_color_manual(
+  #   name = "distribution",
+  #   values = c(
+  #     "grey" = "grey", "black" = "black", "blue" = "blue", "violetred" = "violetred",
+  #     "purple" = "purple", "green" = "green", "orange" = "orange"
+  #   ),
+  #   labels = c("actual", "1 param", "2 param", "3 param", "1 w constant", "2 w constant", "3 ridge")
+  # ) +
+  labs(x = "Amino acids ranked, *i*", y = "Count") +
+  theme(
+    legend.position = "right",
+    axis.title.x = element_markdown()
+  )
+
 
 ```
 
