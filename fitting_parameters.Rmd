@@ -347,7 +347,6 @@ Look at how different constants/pseudocounts impact fit
 ```
 
 
-
 1 parameter fit - without constant
 ```{r, message=FALSE}
 # fit linear model to normalized, log-transformed data
@@ -527,6 +526,7 @@ fit_ridge <- function(site_df){
     site_df$ln_count,
     alpha = 0, # for ridge regression
     lambda = 0.28 # optimal across sites
+    #lambda = 0 # used to confirm that you can recreate 3 param model
   ) -> fit
   
   # get coefficients from fit
@@ -554,8 +554,8 @@ observed_aa_mod %>%
 Examine what value of lambda in `glmnet` give you the results of `lm`
 ```{r, message=FALSE}
 # # some lambda value ridge regression should recreate what you get from lm
-# observed_aa_mod %>% 
-#   filter(site == 3) -> one_site_df 
+# observed_aa_mod %>%
+#   filter(site == 3) -> one_site_df
 # 
 # # fits from 3 parameter lm() fit
 # # intercept: -7.062859594
@@ -584,7 +584,7 @@ Examine what value of lambda in `glmnet` give you the results of `lm`
 # glmnet(
 #   cbind(one_site_df$k, one_site_df$k2),
 #   one_site_df$ln_count,
-#   alpha = 0, 
+#   alpha = 0,
 #   lambda = 0.0000002
 # ) %>% coef()
 
@@ -651,52 +651,9 @@ ordered_count %>%
   mutate(
     est_dist_1_mod = slope_1_mod*exp(k*slope_1_mod),
     est_dist_2_mod = slope_2_mod*exp(k*slope_2_mod+intercept_2_mod),
-    est_dist_3_rid = slope_ridge*(
+    est_dist_3_rid = slope_ridge*exp(
       k*slope_ridge + k*k*sqr_slp_ridge + intercept_ridge
     )
-  ) -> ordered_count
-
-# ordered_count %>% 
-#   select(site, intercept_3, intercept_ridge, slope_3, slope_ridge, sqr_slp_3, sqr_slp_ridge) %>% 
-#   unique() %>% 
-#   filter( 
-#     intercept_3 > 0 & intercept_ridge < 0 |
-#       intercept_3 < 0 & intercept_ridge > 0 |
-#       slope_3 > 0 & slope_ridge < 0 |
-#       slope_3 < 0 & slope_ridge > 0 |
-#       sqr_slp_3 > 0 & sqr_slp_ridge < 0 |
-#       sqr_slp_3 < 0 & sqr_slp_ridge > 0
-#   )%>% View()
-
-# ordered_count %>% 
-#   filter(site == 44) %>% 
-#   ggplot(aes(x = k)) +
-#   #geom_point(aes(y = ln_count)) +
-#   geom_path(aes(y = est_dist_1), color = "black") +
-#   geom_path(aes(y = est_dist_2), color = "blue") +
-#   geom_path(aes(y = est_dist_3), color = "grey") +
-#   geom_path(aes(y = est_dist_1_mod), color = "red") +
-#   geom_path(aes(y = est_dist_2_mod), color = "green") +
-#   geom_path(aes(y = est_dist_3_rid), color = "orange") +
-#   geom_path(aes(y = est_dist_3_rid - max(est_dist_3_rid)), color = "pink")
-#   #stat_function(fun = fun.norm, color = "purple") +
-#   #stat_function(fun = fun.rid, color = "yellow")
-
-#fun.norm <- function(k) 0.055728816 - 0.650043121*k + 0.0066499756*k*k # site 16
-#fun.rid <- function(k) -1.021969165 - 0.3591600*k - 0.0069993493*k*k # site 16
-#fun.norm <- function(k) -4.71 - 0.989*k + 0.0417*k*k # site 44
-#fun.rid <- function(k) -7.06 - 0.279*k + 0.00610*k*k # site 44
-#fun.norm <- function(k) -0.8082027 + 0.063021552*k + -0.02558368*k*k # site 24
-#fun.rid <- function(k) -0.2963912 - 0.1385702*k - 0.01422084*k*k # site 24
-#fun.norm <- function(k) 0.039615500 - 1.1014443*k + 0.0320175777*k*k # site 2
-#fun.rid <- function(k) -2.135163818 - 2.135163818*k + 0.0008326154*k*k # site 2
-
-# make correction to est_dist_3_rid because it is currently wrong
-# needs to be < 0 like all other distributions, but it is not for some reason
-ordered_count %>% 
-  group_by(site) %>% 
-  mutate(
-    est_dist_3_rid_corrected = est_dist_3_rid - max(est_dist_3_rid)
   ) -> ordered_count
 
 # rescale to compare w raw count
@@ -710,7 +667,7 @@ rescale_est_dist <- function(protein_df) {
       est_rel_3 = est_dist_3/sum(est_dist_3),
       est_rel_1_mod = est_dist_1_mod/sum(est_dist_1_mod),
       est_rel_2_mod = est_dist_2_mod/sum(est_dist_2_mod),
-      est_rel_3_rid = est_dist_3_rid_corrected/sum(est_dist_3_rid_corrected)
+      est_rel_3_rid = est_dist_3_rid/sum(est_dist_3_rid)
     ) %>% 
     mutate(
       est_count_1 = sum(count)*est_rel_1,
@@ -731,39 +688,73 @@ ordered_count %>%
                 slope_ridge, sqr_slp_ridge,
                 est_dist_1, est_dist_2, 
                 est_dist_3, est_dist_1_mod, 
-                est_dist_2_mod, est_dist_3_rid,
-                est_dist_3_rid_corrected)) %>% 
+                est_dist_2_mod, est_dist_3_rid)) %>% 
   mutate(rescaled = map(data, rescale_est_dist)) %>% 
   select(-data) %>% 
   unnest(cols = rescaled) -> ordered_count
-
-# # ISSUE: the ridge regression gives rise to sites with negative counts
-# # if these negative counts are used in the chi squared analysis, we get
-# # a negative chi squared statistic and a p value of 1
-# # special function for ridge values
-# # any site that has negative counts is normalized by adding the 
-# # absolute value of the most negative count
-# # also added small constant (0.000001) because a 0 frequency for one aa 
-# # messes up entropy calculation
-# 
-# ordered_count %>% 
-#   group_by(site) %>% 
-#   mutate(
-#     site_min = min(est_dist_3_rid),
-#     site_max = max(est_dist_3_rid),
-#     est_dist_3_rid_adj = case_when(
-#       site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.01,
-#       #site_min < 0 & site_max > 0 ~ est_dist_3_rid+abs(site_min)+0.000001,
-#       TRUE ~ est_dist_3_rid
-#     ),
-#     est_rel_3_rid = est_dist_3_rid_adj/sum(est_dist_3_rid_adj),
-#     est_count_3_rid = sum(count)*est_rel_3_rid
-#   ) -> ordered_count
 
 # remove duplicate information
 rm(observed_fits, observed_fits_mod)
 
 ```
+
+
+Visualize distributions for debugging
+```{r}
+# ordered_count %>% 
+#   select(site, intercept_3, intercept_ridge, slope_3, slope_ridge, sqr_slp_3, sqr_slp_ridge) %>% 
+#   unique() %>% 
+#   filter( 
+#     intercept_3 > 0 & intercept_ridge < 0 |
+#       intercept_3 < 0 & intercept_ridge > 0 |
+#       slope_3 > 0 & slope_ridge < 0 |
+#       slope_3 < 0 & slope_ridge > 0 |
+#       sqr_slp_3 > 0 & sqr_slp_ridge < 0 |
+#       sqr_slp_3 < 0 & sqr_slp_ridge > 0
+#   )%>% View()
+
+#fun.norm <- function(k) 0.055728816 - 0.650043121*k + 0.0066499756*k*k # site 16
+#fun.rid <- function(k) -1.021969165 - 0.3591600*k - 0.0069993493*k*k # site 16
+#fun.norm <- function(k) -4.71 - 0.989*k + 0.0417*k*k # site 44
+#fun.rid <- function(k) -7.06 - 0.279*k + 0.00610*k*k # site 44
+#fun.norm <- function(k) -0.8082027 + 0.063021552*k + -0.02558368*k*k # site 24
+#fun.rid <- function(k) -0.2963912 - 0.1385702*k - 0.01422084*k*k # site 24
+#fun.norm <- function(k) 0.039615500 - 1.1014443*k + 0.0320175777*k*k # site 2
+#fun.rid <- function(k) -2.135163818 - 2.135163818*k + 0.0008326154*k*k # site 2
+
+# fun.3 <- function(k) 0.2896188 - 1.179601*k + 0.04481159*k*k # site 153
+# fun.rid <- function(k) 0.2837349 - 1.177892*k + 0.04472777*k*k # site 153
+# 
+# ordered_count %>%
+#   filter(site == 153) %>% # sites to look at: 16, 44, 80, 138
+#   ggplot(aes(x = k)) +
+#   #geom_point(aes(y = ln_count)) +
+#   # geom_path(aes(y = est_dist_1), color = "black") +
+#   # geom_path(aes(y = est_dist_2), color = "blue") +
+#   #geom_path(aes(y = est_dist_3), color = "grey") 
+#   # geom_path(aes(y = est_dist_1_mod), color = "red") +
+#   # geom_path(aes(y = est_dist_2_mod), color = "green") +
+#   #geom_path(aes(y = est_dist_3_rid), color = "orange") +
+#   #stat_function(fun = fun.3, color = "purple") +
+#   #stat_function(fun = fun.rid, color = "yellow")
+#   # geom_path(aes(y = est_rel_1), color = "black") +
+#   # geom_path(aes(y = est_rel_2), color = "blue") +
+#   # geom_path(aes(y = est_rel_3), color = "grey") +
+#   # geom_path(aes(y = est_rel_1_mod), color = "red") +
+#   # geom_path(aes(y = est_rel_2_mod), color = "green") +
+#   # geom_path(aes(y = est_rel_3_rid), color = "orange")
+#   geom_point(aes(y = count)) +
+#   geom_path(aes(y = est_count_1), color = "black") +
+#   geom_path(aes(y = est_count_2), color = "blue") +
+#   geom_path(aes(y = est_count_3), color = "grey") +
+#   geom_path(aes(y = est_count_1_mod), color = "red") +
+#   geom_path(aes(y = est_count_2_mod), color = "green") +
+#   geom_path(aes(y = est_count_3_rid), color = "orange")
+
+
+```
+
+
 
 
 Chi-squared test: actual vs estimated
@@ -849,7 +840,7 @@ chisq_results %>%
 chisq_results %>% 
   filter(parameters == 3 & result == "fail") %>% nrow()
 
-# 153 sites; 153 fail (100%) - RIDGE
+# 153 sites; 105 fail (68.6%) - RIDGE
 chisq_results %>% 
   filter(parameters == "3_rid" & result == "fail") %>% nrow()
 
@@ -1052,7 +1043,7 @@ rsq(compare_p3$eff_aa, compare_p3$eff_aa_est) # 0.4008924 - WITH CONSTANT
 compare_eff_aa %>% 
   filter(parameters == "3_rid" & !is.na(eff_aa_est)) -> compare_p3_rid
 
-rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.8818093 - RIDGE, 0.926948 with 0.001
+rsq(compare_p3_rid$eff_aa, compare_p3_rid$eff_aa_est) # 0.06953798 - RIDGE w lambda = 0
 
 rm(compare_p1, compare_p1_mod, compare_p2, compare_p2_mod, compare_p3)
 
@@ -1130,10 +1121,10 @@ Supplementary Figure 8
 dat_text_mod <- data.frame(
   label = c("*R*<sup>2</sup> = 0.886", # 0.971 NO CONSTANT, 0.886 WITH CONSTANT
             "*R*<sup>2</sup> = 0.292", # 0.859 NO CONSTANT, 0.292 WITH CONSTANT
-            "*R*<sup>2</sup> = 0.881"),
+            "*R*<sup>2</sup> = 0.0695"),
   parameters = c(1, 2, 3),
-  x = c(12.5, 12.5, 12.5),
-  y = c(18, 18, 18)
+  x = c(11.25, 11.25, 11.25),
+  y = c(2, 2, 2)
 )
 
 all_results %>% 
@@ -1167,8 +1158,15 @@ ggplot(all_results_mod,
     label.color = NA,
     inherit.aes = FALSE
   ) +
-  scale_x_continuous(limits = c(0, 13)) +
-  scale_y_continuous(limits = c(0,21)) +
+  scale_x_continuous(
+    limits = c(0, 13),
+    breaks = c(2.5, 5.0, 7.5, 10.0, 12.5),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 13),
+    breaks = c(0, 2.5, 5, 7.5, 10, 12.5)
+  ) +
   facet_grid(vars(parameters)) + 
   theme_cowplot(12, rel_small = 1) +
   panel_border() +
@@ -1258,35 +1256,35 @@ save_plot("figures6.png", figs6, ncol = 1, nrow = 1, base_height = 5,
 ```
 
 
-
+Visualize different fits at individual sites
 ```{r, message=FALSE}
-# visualize how each fit works at any given site
-# 16 should be fit easily
-# 44, 90, 15, 138
-
-ordered_count %>%
-  filter(site == 16) %>%
-  ggplot(aes(x = k)) +
-  geom_bar(aes(y = count), fill = "grey", stat='identity') +
-  geom_line(aes(y = est_count_1), color = "black", size = 1) +
-  geom_line(aes(y = est_count_2), color = "blue", size = 1) +
-  geom_line(aes(y = est_count_3), color = "violetred", size = 1) +
-  geom_line(aes(y = est_count_1_mod), color = "purple", size = 1) +
-  geom_line(aes(y = est_count_2_mod), color = "green", size = 1) +
-  geom_line(aes(y = est_count_3_rid), color = "orange", size = 1) +
-  # scale_color_manual(
-  #   name = "distribution",
-  #   values = c(
-  #     "grey" = "grey", "black" = "black", "blue" = "blue", "violetred" = "violetred",
-  #     "purple" = "purple", "green" = "green", "orange" = "orange"
-  #   ),
-  #   labels = c("actual", "1 param", "2 param", "3 param", "1 w constant", "2 w constant", "3 ridge")
-  # ) +
-  labs(x = "Amino acids ranked, *i*", y = "Count") +
-  theme(
-    legend.position = "right",
-    axis.title.x = element_markdown()
-  )
+# # visualize how each fit works at any given site
+# # 16 should be fit easily
+# # 44, 90, 15, 138
+# 
+# ordered_count %>%
+#   filter(site == 16) %>%
+#   ggplot(aes(x = k)) +
+#   geom_bar(aes(y = count), fill = "grey", stat='identity') +
+#   geom_line(aes(y = est_count_1), color = "black", size = 1) +
+#   geom_line(aes(y = est_count_2), color = "blue", size = 1) +
+#   geom_line(aes(y = est_count_3), color = "violetred", size = 1) +
+#   geom_line(aes(y = est_count_1_mod), color = "purple", size = 1) +
+#   geom_line(aes(y = est_count_2_mod), color = "green", size = 1) +
+#   geom_line(aes(y = est_count_3_rid), color = "orange", size = 1) +
+#   # scale_color_manual(
+#   #   name = "distribution",
+#   #   values = c(
+#   #     "grey" = "grey", "black" = "black", "blue" = "blue", "violetred" = "violetred",
+#   #     "purple" = "purple", "green" = "green", "orange" = "orange"
+#   #   ),
+#   #   labels = c("actual", "1 param", "2 param", "3 param", "1 w constant", "2 w constant", "3 ridge")
+#   # ) +
+#   labs(x = "Amino acids ranked, *i*", y = "Count") +
+#   theme(
+#     legend.position = "right",
+#     axis.title.x = element_markdown()
+#   )
 
 
 ```
