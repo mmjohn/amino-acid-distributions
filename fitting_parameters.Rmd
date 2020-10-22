@@ -725,31 +725,31 @@ Visualize distributions for debugging
 # fun.3 <- function(k) 0.2896188 - 1.179601*k + 0.04481159*k*k # site 153
 # fun.rid <- function(k) 0.2837349 - 1.177892*k + 0.04472777*k*k # site 153
 # 
-# ordered_count %>%
-#   filter(site == 153) %>% # sites to look at: 16, 44, 80, 138
-#   ggplot(aes(x = k)) +
-#   #geom_point(aes(y = ln_count)) +
-#   # geom_path(aes(y = est_dist_1), color = "black") +
-#   # geom_path(aes(y = est_dist_2), color = "blue") +
-#   #geom_path(aes(y = est_dist_3), color = "grey") 
-#   # geom_path(aes(y = est_dist_1_mod), color = "red") +
-#   # geom_path(aes(y = est_dist_2_mod), color = "green") +
-#   #geom_path(aes(y = est_dist_3_rid), color = "orange") +
-#   #stat_function(fun = fun.3, color = "purple") +
-#   #stat_function(fun = fun.rid, color = "yellow")
-#   # geom_path(aes(y = est_rel_1), color = "black") +
-#   # geom_path(aes(y = est_rel_2), color = "blue") +
-#   # geom_path(aes(y = est_rel_3), color = "grey") +
-#   # geom_path(aes(y = est_rel_1_mod), color = "red") +
-#   # geom_path(aes(y = est_rel_2_mod), color = "green") +
-#   # geom_path(aes(y = est_rel_3_rid), color = "orange")
-#   geom_point(aes(y = count)) +
-#   geom_path(aes(y = est_count_1), color = "black") +
-#   geom_path(aes(y = est_count_2), color = "blue") +
-#   geom_path(aes(y = est_count_3), color = "grey") +
-#   geom_path(aes(y = est_count_1_mod), color = "red") +
-#   geom_path(aes(y = est_count_2_mod), color = "green") +
-#   geom_path(aes(y = est_count_3_rid), color = "orange")
+ordered_count %>%
+  filter(site == 138) %>% # sites to look at: 16, 44, 80, 138, 153
+  ggplot(aes(x = k)) +
+  #geom_point(aes(y = ln_count)) +
+  # geom_path(aes(y = est_dist_1), color = "black") +
+  # geom_path(aes(y = est_dist_2), color = "blue") +
+  # geom_path(aes(y = est_dist_3), color = "grey") +
+  # geom_path(aes(y = est_dist_1_mod), color = "red") +
+  # geom_path(aes(y = est_dist_2_mod), color = "green") +
+  # geom_path(aes(y = est_dist_3_rid), color = "orange") 
+  #stat_function(fun = fun.3, color = "purple") +
+  #stat_function(fun = fun.rid, color = "yellow")
+  # geom_path(aes(y = est_rel_1), color = "black") +
+  # geom_path(aes(y = est_rel_2), color = "blue") +
+  # geom_path(aes(y = est_rel_3), color = "grey") +
+  # geom_path(aes(y = est_rel_1_mod), color = "red") +
+  # geom_path(aes(y = est_rel_2_mod), color = "green") +
+  # geom_path(aes(y = est_rel_3_rid), color = "orange")
+  geom_point(aes(y = count)) +
+  geom_path(aes(y = est_count_1), color = "black") +
+  geom_path(aes(y = est_count_2), color = "blue") +
+  geom_path(aes(y = est_count_3), color = "grey") +
+  geom_path(aes(y = est_count_1_mod), color = "red") +
+  geom_path(aes(y = est_count_2_mod), color = "green") +
+  geom_path(aes(y = est_count_3_rid), color = "orange")
 
 
 ```
