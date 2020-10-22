@@ -284,9 +284,11 @@ observed_aa %>%
 
 # add a small constant to include aa with zero values
 ordered_count %>%
-  mutate(count = count + 0.000001) -> observed_aa_mod
+  mutate(count = count + 0.01) -> observed_aa_mod
+  #mutate(count = count + 0.000001) -> observed_aa_mod
 ordered_count %>%
-  mutate(count_mod = count + 0.000001) -> ordered_count_mod
+  mutate(count_mod = count + 0.01) -> ordered_count_mod
+  #mutate(count_mod = count + 0.000001) -> ordered_count_mod
 
 # count relative to most frequent - rescale to 1 for highly conserved sites
 observed_aa_mod %>%
@@ -451,15 +453,15 @@ chisq_results$result[chisq_results$p.adjusted < 0.05] <- "fail"
 
 Chi-squared results based on number of parameters used
 ```{r, message=FALSE}
-# 133 sites; 17 fail (12.8%)
+# 1834 sites; 254 fail 
 chisq_results %>% 
   filter(parameters == 1 & result == "fail") %>% nrow()
 
-# 133 sites; 34 fail (25.6%)
+# 1834 sites; 486 fail 
 chisq_results %>% 
   filter(parameters == 2 & result == "fail") %>% nrow()
 
-# 153 sites; 129 fail (84.3%)
+# 2058 sites; 1253 fail 
 chisq_results %>% 
   filter(parameters == 3 & result == "fail") %>% nrow()
 
