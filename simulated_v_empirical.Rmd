@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Analysis of fitting procedures on simulated v empirical alignments
-This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4 and Supplementary Figures 2 and 5. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results. Additionally examines effects of larger sample size in simulated alignments.
+This RMarkdown document repeats the fitting procedures for the 10 paired simulated and empirical protein alignments and produces Figure 4 and Supplementary Figures 2 and 3. It repeats code from simulated_protein_all.Rmd and empirical_protein_all.Rmd, and compares chi-squared results. Additionally examines effects of larger sample size in simulated alignments.
 
 
 ```{r, message=FALSE}
@@ -1002,7 +1002,7 @@ recode(
 ```
 
 
-Supplementary figure 5
+Supplementary figure 3
 ```{r, message=FALSE}
 library(ggtext)
 
@@ -1025,11 +1025,11 @@ all_results_r2 %>%
     legend.position = "none",
     axis.title.x = element_markdown()
   ) +
-  panel_border() -> figs5
+  panel_border() -> figs3
 
-figs5
+figs3
 
-save_plot("figures5.png", figs5, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures3.png", figs3, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```

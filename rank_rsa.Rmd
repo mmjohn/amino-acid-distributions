@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Analysis of amino acid identities occupying rank 0 by RSA
 
-RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Supplementary Figure 4.
+RMarkdown document that shows how the location of a site within a protein impacts which amino acid is most frequent (rank 0), produces Supplementary Figure 7.
 
 ```{r, message=FALSE}
 # load packages
@@ -470,7 +470,7 @@ plot_df %>%
 ```
 
 
-Supplementary Figure 4:
+Supplementary Figure 7:
 ```{r, message=FALSE}
 plot_df %>% 
   ggplot(aes(x = aa, y = freq, fill = type)) +
@@ -488,11 +488,11 @@ plot_df %>%
   #scale_x_discrete(expand = c(0.1,0.1)) +
   labs(x = "Amino acids", y = "Frequency") +
   theme_cowplot() +
-  panel_border() -> figs4
+  panel_border() -> figs7
 
-figs4
+figs7
 
-save_plot("figures4.pdf", figs4, ncol = 1, nrow = 1, 
+save_plot("figures7.pdf", figs7, ncol = 1, nrow = 1, 
           base_height = 5,
           base_asp = 1.618, base_width = NULL)
 

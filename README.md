@@ -8,15 +8,15 @@ Figures from the paper are produced by the following files:
 
 `simulated_protein_all.Rmd` - Figure 3
 
-`simulated_v_empirical.Rmd` - Figure 4 and supplementary figures 2 and 5
+`simulated_v_empirical.Rmd` - Figure 4 and supplementary figures 2 and 3 
 
 `null_models.Rmd` - Figure 5
 
-`fitting_parameters.Rmd` - Figure 6 and supplementary figures 6, 7, and 8
+`fitting_parameters.Rmd` - Figure 6 and supplementary figures 4, 6, and 8
 
 `empirical_protein_all.Rmd` - Supplementary figure 1
 
-`fitting_parameters_all.Rmd` - Supplementary figure 3
+`fitting_parameters_all.Rmd` - Supplementary figure 5 
 
-`rank_rsa.Rmd` - Supplementary figure 4
+`rank_rsa.Rmd` - Supplementary figure 7
 

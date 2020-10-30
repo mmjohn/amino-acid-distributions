@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Varying the number of parameters used for fitting amino acid distributions
 
-This is the RMarkdown document used to produce Supplementary Figure 3. It compares results for fitting distributions with a different number of parameters for all empirical MSAs.
+This is the RMarkdown document used to produce Supplementary Figure 5. It compares results for fitting distributions with a different number of parameters for all empirical MSAs.
 
 Load necessary packages
 ```{r, message=FALSE}
@@ -596,7 +596,7 @@ full_join(results_p1, results_p2) %>%
 ```
 
 
-Figure 7
+Supplemental Figure 5
 ```{r, message=FALSE}
 
 ggplot(results_corr, aes(x = param, y = r2)) +
@@ -613,11 +613,11 @@ ggplot(results_corr, aes(x = param, y = r2)) +
   theme_cowplot(12, rel_small = 1) +
   theme(
     axis.title.x = element_markdown(),
-    axis.title.y = element_markdown()) -> figs3
+    axis.title.y = element_markdown()) -> figs5
 
-figs3
+figs5
 
-save_plot("figures3.png", figs3, ncol = 1, nrow = 1, base_height = 5,
+save_plot("figures5.png", figs5, ncol = 1, nrow = 1, base_height = 5,
           base_asp = 1.618, base_width = NULL)
 
 ```
