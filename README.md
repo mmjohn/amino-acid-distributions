@@ -1,6 +1,6 @@
 # amino-acid-distributions
 
-All data, code, and figures for the paper: [Johnson, M. M. and Wilke, C. O.(2020). Site-specific amino acid distributions follow a universal shape. bioRxiv doi: 10.1101/2020.08.05.238493](https://www.biorxiv.org/content/10.1101/2020.08.05.238493v1)
+All data, code, and figures for the paper: [Johnson, M.M., Wilke, C.O. Site-Specific Amino Acid Distributions Follow a Universal Shape. J Mol Evol (2020). doi: 10.1007/s00239-020-09976-8](https://link.springer.com/article/10.1007/s00239-020-09976-8)
 
 Figures from the paper are produced by the following files:
 
